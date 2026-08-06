@@ -243,7 +243,7 @@ codesign -d --entitlements :- "$exported_app" >"$logs_dir/entitlements.plist" 2>
 
 grep -Fq "Authority=$release_identity" "$logs_dir/codesign-app.txt" || fail "exported app uses the wrong signing authority"
 grep -Fq "TeamIdentifier=$team_id" "$logs_dir/codesign-app.txt" || fail "exported app uses the wrong team identifier"
-grep -Eq '^flags=.*runtime' "$logs_dir/codesign-app.txt" || fail "exported app is missing hardened runtime flags"
+grep -Eq '^CodeDirectory .* flags=.*runtime' "$logs_dir/codesign-app.txt" || fail "exported app is missing hardened runtime flags"
 grep -Eq '^Timestamp=' "$logs_dir/codesign-app.txt" || fail "exported app is missing a secure timestamp"
 
 get_task_allow="$(plutil -extract com.apple.security.get-task-allow raw "$logs_dir/entitlements.plist" 2>/dev/null || true)"
