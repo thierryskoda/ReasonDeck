@@ -32,7 +32,7 @@ final class SettingsWindowController {
 @MainActor
 @Observable
 final class MenuBarViewModel {
-    private let logger = Logger(subsystem: "com.thierryai.ChatGPTProfileKeys", category: "result")
+    private let logger = Logger(subsystem: "com.thierryai.ModelKey", category: "result")
     private let coordinator = ProfileSwitchCoordinator(client: SystemAccessibilityClient())
     private let settingsWindowController = SettingsWindowController()
     private var hotkeyTap: HotkeyEventTap?
@@ -65,7 +65,7 @@ final class MenuBarViewModel {
             Task { @MainActor in self?.refreshPermissions() }
         }
         refreshPermissions()
-        let firstRunKey = "com.thierryai.ChatGPTProfileKeys.didOpenInitialSettings.v1"
+        let firstRunKey = "com.thierryai.ModelKey.didOpenInitialSettings.v1"
         if !UserDefaults.standard.bool(forKey: firstRunKey) {
             UserDefaults.standard.set(true, forKey: firstRunKey)
             DispatchQueue.main.async { [weak self] in self?.openSettings() }
@@ -137,7 +137,7 @@ struct MenuBarContent: View {
     @Bindable var model: MenuBarViewModel
     var body: some View {
         if model.permissionState == .accessibilityRequired {
-            Text("ChatGPT Profile Keys needs Accessibility permission to select model-menu controls. It only inspects the active ChatGPT window.")
+            Text("ModelKey needs Accessibility permission to select model-menu controls. It only inspects the active ChatGPT window.")
             Button("Request Accessibility Permission…") { model.readiness.requestAccessibility() }
             Button("Open Accessibility Settings…") { model.readiness.openAccessibilitySettings() }
             Divider()
@@ -171,10 +171,10 @@ struct MenuBarContent: View {
 }
 
 @main
-struct ChatGPTProfileKeysApp: App {
+struct ModelKeyApp: App {
     @State private var model = MenuBarViewModel(store: ProfileStore())
     var body: some Scene {
-        MenuBarExtra("ChatGPT Profile Keys", systemImage: model.isSwitching ? "arrow.triangle.2.circlepath" : "switch.2") {
+        MenuBarExtra("ModelKey", systemImage: model.isSwitching ? "arrow.triangle.2.circlepath" : "switch.2") {
             MenuBarContent(model: model)
         }
         .menuBarExtraStyle(.menu)

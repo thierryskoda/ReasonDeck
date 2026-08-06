@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "ChatGPTProfileKeys",
+    name: "ModelKey",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "ChatGPTProfileKeys", targets: ["ChatGPTProfileKeys"])],
+    products: [.executable(name: "ModelKey", targets: ["ModelKey"])],
     targets: [
-        .executableTarget(name: "ChatGPTProfileKeys", path: "Sources"),
-        .testTarget(name: "ChatGPTProfileKeysTests", dependencies: ["ChatGPTProfileKeys"], path: "Tests")
+        .executableTarget(name: "ModelKey", path: "Sources"),
+        .testTarget(name: "ModelKeyTests", dependencies: ["ModelKey"], path: "Tests")
     ]
 )

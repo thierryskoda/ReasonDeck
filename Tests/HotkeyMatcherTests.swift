@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 import Testing
-@testable import ChatGPTProfileKeys
+@testable import ModelKey
 
 private let firstID = UUID()
 private let secondID = UUID()

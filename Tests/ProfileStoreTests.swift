@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ChatGPTProfileKeys
+@testable import ModelKey
 
 @MainActor
 private func isolatedDefaults() -> UserDefaults {

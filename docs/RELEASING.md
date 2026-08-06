@@ -16,13 +16,13 @@ The release command prepares and verifies artifacts. It never creates tags, push
 - The matching team in ignored `Config/Local.xcconfig`
 - A validated `notarytool` Keychain profile
 - Current Xcode command-line tools
-- Access to the `thierryskoda/ChatGPTProfileKeys` repository
+- Access to the `thierryskoda/modelkey` repository
 - Access to the `thierryskoda/homebrew-tap` repository after the Cask is introduced
 
 Store notarization credentials interactively. Do not put an Apple ID password, app-specific password, API key, or certificate in the repository or command history.
 
 ```sh
-xcrun notarytool store-credentials ChatGPTProfileKeys
+xcrun notarytool store-credentials ModelKey
 ```
 
 Follow Apple's current notarization authentication guidance when creating that Keychain profile.
@@ -41,10 +41,10 @@ Versions use `MAJOR.MINOR.PATCH`. During major version zero, every release note 
 ```sh
 swift test
 xcodebuild \
-  -project ChatGPTProfileKeys.xcodeproj \
-  -scheme ChatGPTProfileKeys \
+  -project ModelKey.xcodeproj \
+  -scheme ModelKey \
   -configuration Release \
-  -derivedDataPath /private/tmp/ChatGPTProfileKeys-ReleaseCheck \
+  -derivedDataPath /private/tmp/ModelKey-ReleaseCheck \
   CODE_SIGNING_ALLOWED=NO \
   build
 git status --short
@@ -55,14 +55,14 @@ The test suite and build must pass, and `git status --short` must be empty.
 ## 3. Build the release candidate
 
 ```sh
-scripts/release.sh 0.1.0 --notary-profile ChatGPTProfileKeys
+scripts/release.sh 0.1.0 --notary-profile ModelKey
 ```
 
 If more than one Developer ID Application identity is installed, pass the intended full identity explicitly:
 
 ```sh
 scripts/release.sh 0.1.0 \
-  --notary-profile ChatGPTProfileKeys \
+  --notary-profile ModelKey \
   --identity "Developer ID Application: Name (TEAMID)"
 ```
 
@@ -70,7 +70,7 @@ The command must fail if the version, Git state, bundle identifier, team, identi
 
 Successful output is stored under `dist/v<version>/`:
 
-- `ChatGPT-Profile-Keys-<version>.dmg`
+- `ModelKey-<version>.dmg`
 - `SHA256SUMS`
 - `release-evidence.txt`
 - Apple notarization reports
@@ -104,7 +104,7 @@ Run the repository's `workflow-review` and `shipping-and-launch` gates. Resolve 
 Before an external action, verify:
 
 - GitHub account: `thierryskoda`
-- Repository: `thierryskoda/ChatGPTProfileKeys`
+- Repository: `thierryskoda/modelkey`
 - Release commit and version
 - Intended annotated tag `v<version>`
 - DMG filename and SHA-256

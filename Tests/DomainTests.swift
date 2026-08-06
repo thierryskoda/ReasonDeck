@@ -1,5 +1,5 @@
 import Testing
-@testable import ChatGPTProfileKeys
+@testable import ModelKey
 
 @Test func configurationStartsEmpty() {
     #expect(ShortcutConfiguration.empty.entries.isEmpty)

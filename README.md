@@ -1,6 +1,6 @@
-# ChatGPT Profile Keys
+# ModelKey
 
-ChatGPT Profile Keys is a small macOS menu-bar app for switching the active ChatGPT conversation with keyboard shortcuts you choose.
+ModelKey is a small macOS menu-bar app for switching the active ChatGPT conversation with keyboard shortcuts you choose.
 
 It is local-only, starts with no shortcuts, and is unofficial. It is not affiliated with or endorsed by OpenAI.
 
@@ -8,14 +8,14 @@ It is local-only, starts with no shortcuts, and is unofficial. It is not affilia
 
 ## Download for Mac
 
-Download the latest `ChatGPT-Profile-Keys-<version>.dmg` from [GitHub Releases](https://github.com/thierryskoda/ChatGPTProfileKeys/releases/latest).
+Download the latest `ModelKey-<version>.dmg` from [GitHub Releases](https://github.com/thierryskoda/modelkey/releases/latest).
 
 If the release page does not contain a signed DMG and `SHA256SUMS`, the binary release is not ready yet. Do not download repackaged copies from another source.
 
 ### Install
 
 1. Open the downloaded DMG.
-2. Drag **ChatGPT Profile Keys** to **Applications**.
+2. Drag **ModelKey** to **Applications**.
 3. Open the app from Applications. It appears in the menu bar instead of the Dock.
 4. In the Settings window, grant Accessibility and Input Monitoring when macOS requests them.
 5. Choose **Add Shortcut**, record a keyboard command, then select its model and reasoning effort.
@@ -27,7 +27,7 @@ Official binary releases must be signed with Developer ID and notarized by Apple
 The custom Homebrew Cask will install the same notarized DMG published on GitHub. After the v0.1 Cask is available:
 
 ```sh
-brew install --cask thierryskoda/tap/chatgpt-profile-keys
+brew install --cask thierryskoda/tap/modelkey
 ```
 
 Direct download remains the primary installation path.
@@ -85,7 +85,7 @@ Homebrew users can update with:
 
 ```sh
 brew update
-brew upgrade --cask chatgpt-profile-keys
+brew upgrade --cask modelkey
 ```
 
 ## Troubleshooting
@@ -100,21 +100,21 @@ brew upgrade --cask chatgpt-profile-keys
 
 ## Uninstall
 
-Quit ChatGPT Profile Keys and move it from Applications to the Trash. You can also remove it from Accessibility and Input Monitoring in System Settings.
+Quit ModelKey and move it from Applications to the Trash. You can also remove it from Accessibility and Input Monitoring in System Settings.
 
 Ordinary uninstall leaves saved shortcuts in place for a later reinstall. To remove those preferences too:
 
 ```sh
-defaults delete com.thierryai.ChatGPTProfileKeys
+defaults delete com.thierryai.ModelKey
 ```
 
 Homebrew users can uninstall the app while keeping preferences:
 
 ```sh
-brew uninstall --cask chatgpt-profile-keys
+brew uninstall --cask modelkey
 ```
 
-Use `brew uninstall --zap --cask chatgpt-profile-keys` only when you also want the Cask's documented app-owned preferences removed.
+Use `brew uninstall --zap --cask modelkey` only when you also want the Cask's documented app-owned preferences removed.
 
 ## Build from source
 
@@ -132,12 +132,12 @@ Building from source requires Xcode with the macOS SDK.
    ```sh
    swift test
    xcodebuild \
-     -project ChatGPTProfileKeys.xcodeproj \
-     -scheme ChatGPTProfileKeys \
+     -project ModelKey.xcodeproj \
+     -scheme ModelKey \
      -configuration Release \
      -derivedDataPath build \
      build
-   open build/Build/Products/Release/ChatGPTProfileKeys.app
+   open build/Build/Products/Release/ModelKey.app
    ```
 
 Use a consistently signed Release build for live permission testing. The SwiftPM debug executable is not the supported live app identity.

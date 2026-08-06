@@ -1,5 +1,5 @@
 import Testing
-@testable import ChatGPTProfileKeys
+@testable import ModelKey
 
 actor FakeAccessibilityClient: AccessibilityClient {
     var title: String

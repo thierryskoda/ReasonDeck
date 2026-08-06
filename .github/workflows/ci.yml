@@ -27,8 +27,8 @@ jobs:
       - name: Build unsigned Release
         run: >-
           xcodebuild
-          -project ChatGPTProfileKeys.xcodeproj
-          -scheme ChatGPTProfileKeys
+          -project ModelKey.xcodeproj
+          -scheme ModelKey
           -configuration Release
           -derivedDataPath "$RUNNER_TEMP/DerivedData"
           CODE_SIGNING_ALLOWED=NO

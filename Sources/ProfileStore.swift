@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class ProfileStore {
-    static let storageKey = "com.thierryai.ChatGPTProfileKeys.shortcutConfiguration.v2"
+    static let storageKey = "com.thierryai.ModelKey.shortcutConfiguration.v1"
 
     private(set) var configuration: ShortcutConfiguration?
     private(set) var invalidReason: String?
