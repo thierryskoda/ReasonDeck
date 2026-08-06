@@ -4,6 +4,20 @@ import CoreGraphics
 import Foundation
 import Observation
 
+enum AppInstallLocation: Equatable, Sendable {
+    case installed
+    case requiresInstallation
+    case unsupportedBuild
+
+    static func classify(_ bundleURL: URL) -> Self {
+        let url = bundleURL.standardizedFileURL
+        guard url.pathExtension == "app" else { return .unsupportedBuild }
+        return url.deletingLastPathComponent().path == "/Applications"
+            ? .installed
+            : .requiresInstallation
+    }
+}
+
 enum PermissionState: Equatable, Sendable {
     case ready, accessibilityRequired, inputMonitoringRequired
 
@@ -30,10 +44,19 @@ struct PermissionSnapshot: Equatable, Sendable {
 @MainActor
 @Observable
 final class PermissionReadiness {
+    let bundleURL: URL
+    private(set) var installLocation: AppInstallLocation
+    private(set) var installationError: String?
+    private(set) var isInstalling = false
     private(set) var snapshot = PermissionSnapshot(
         accessibilityGranted: false,
         inputMonitoringGranted: false
     )
+
+    init(bundleURL: URL = Bundle.main.bundleURL) {
+        self.bundleURL = bundleURL
+        installLocation = AppInstallLocation.classify(bundleURL)
+    }
 
     var state: PermissionState { snapshot.state }
 
@@ -43,18 +66,63 @@ final class PermissionReadiness {
 
     func requestAccessibility() {
         PermissionController.requestAccessibility()
-    }
-
-    func openAccessibilitySettings() {
-        PermissionController.openPrivacyPane("Privacy_Accessibility")
+        openSettingsAfterRequest("Privacy_Accessibility")
     }
 
     func requestInputMonitoring() {
         PermissionController.requestInputMonitoring()
+        openSettingsAfterRequest("Privacy_ListenEvent")
     }
 
-    func openInputMonitoringSettings() {
-        PermissionController.openPrivacyPane("Privacy_ListenEvent")
+    func installInApplications() {
+        guard installLocation == .requiresInstallation, !isInstalling else { return }
+        let destination = URL(fileURLWithPath: "/Applications/ReasonDeck.app", isDirectory: true)
+
+        guard !FileManager.default.fileExists(atPath: destination.path) else {
+            installationError = "ReasonDeck already exists in Applications. Open that copy, or remove it before installing this build."
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+            return
+        }
+
+        isInstalling = true
+        installationError = nil
+        do {
+            try FileManager.default.copyItem(at: bundleURL, to: destination)
+        } catch {
+            isInstalling = false
+            installationError = "ReasonDeck could not be copied to Applications: \(error.localizedDescription)"
+            return
+        }
+
+        Task {
+            do {
+                UserDefaults.standard.removeObject(
+                    forKey: "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
+                )
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.activates = true
+                configuration.createsNewApplicationInstance = true
+                _ = try await NSWorkspace.shared.openApplication(
+                    at: destination,
+                    configuration: configuration
+                )
+                NSApplication.shared.terminate(nil)
+            } catch {
+                isInstalling = false
+                installationError = "ReasonDeck was installed, but the installed copy could not be opened: \(error.localizedDescription)"
+                NSWorkspace.shared.activateFileViewerSelecting([destination])
+            }
+        }
+    }
+
+    func clearInstallationError() {
+        installationError = nil
+    }
+
+    private func openSettingsAfterRequest(_ pane: String) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            PermissionController.openPrivacyPane(pane)
+        }
     }
 }
 

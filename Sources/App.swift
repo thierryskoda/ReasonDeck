@@ -7,12 +7,11 @@ import os
 final class SettingsWindowController {
     private var window: NSWindow?
 
-    func show(store: ProfileStore, readiness: PermissionReadiness, onRetryHotkeys: @escaping () -> Void) {
+    func show(store: ProfileStore, readiness: PermissionReadiness) {
         if window == nil {
             let controller = NSHostingController(rootView: SettingsView(
                 store: store,
-                readiness: readiness,
-                onRetryHotkeys: onRetryHotkeys
+                readiness: readiness
             ))
             let window = NSWindow(contentViewController: controller)
             window.title = "Shortcuts"
@@ -56,13 +55,15 @@ final class MenuBarViewModel {
         }
         store.onChange = { [weak self] in self?.syncHotkeys() }
         syncHotkeys()
-        _ = hotkeyTap?.start()
+        if readiness.installLocation == .installed {
+            _ = hotkeyTap?.start()
+        }
         activationObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.refreshPermissions() }
+            Task { @MainActor in self?.retryPermissions() }
         }
         refreshPermissions()
         let firstRunKey = "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
@@ -74,6 +75,11 @@ final class MenuBarViewModel {
 
     func apply(_ id: UUID) {
         guard !isSwitching else { NSSound.beep(); return }
+        guard readiness.installLocation == .installed else {
+            status = .failure("Install ReasonDeck in Applications before using shortcuts.")
+            NSSound.beep()
+            return
+        }
         guard let entry = store.entry(id: id), entry.shortcut != nil else {
             status = .invalidConfiguration(store.invalidReason ?? "Saved shortcuts are invalid.")
             NSSound.beep()
@@ -103,14 +109,12 @@ final class MenuBarViewModel {
 
     func openSettings() {
         refreshPermissions()
-        settingsWindowController.show(
-            store: store,
-            readiness: readiness,
-            onRetryHotkeys: { [weak self] in self?.retryPermissions() }
-        )
+        settingsWindowController.show(store: store, readiness: readiness)
     }
     func retryPermissions() {
-        if hotkeyTap?.state != .running { _ = hotkeyTap?.start() }
+        if readiness.installLocation == .installed, hotkeyTap?.state != .running {
+            _ = hotkeyTap?.start()
+        }
         refreshPermissions()
     }
     func refreshPermissions() {
@@ -136,16 +140,17 @@ final class MenuBarViewModel {
 struct MenuBarContent: View {
     @Bindable var model: MenuBarViewModel
     var body: some View {
-        if model.permissionState == .accessibilityRequired {
+        if model.readiness.installLocation != .installed {
+            Text("Install ReasonDeck in Applications before granting permissions.")
+            Button("Open Settings…") { model.openSettings() }
+            Divider()
+        } else if model.permissionState == .accessibilityRequired {
             Text("ReasonDeck needs Accessibility permission to select model-menu controls. It only inspects the active ChatGPT window.")
-            Button("Request Accessibility Permission…") { model.readiness.requestAccessibility() }
-            Button("Open Accessibility Settings…") { model.readiness.openAccessibilitySettings() }
+            Button("Allow Accessibility…") { model.readiness.requestAccessibility() }
             Divider()
         } else if model.permissionState == .inputMonitoringRequired {
             Text("Input Monitoring is required for app-scoped shortcuts.")
-            Button("Request Input Monitoring…") { model.readiness.requestInputMonitoring() }
-            Button("Open Input Monitoring Settings…") { model.readiness.openInputMonitoringSettings() }
-            Button("Retry Hotkeys") { model.retryPermissions() }
+            Button("Allow Input Monitoring…") { model.readiness.requestInputMonitoring() }
             Divider()
         }
         if model.store.entries.isEmpty {
@@ -154,7 +159,13 @@ struct MenuBarContent: View {
             ForEach(model.store.entries) { entry in
                 let shortcut = entry.shortcut?.displayName ?? "Set shortcut in Settings"
                 Button("\(entry.selection.displayName)    \(shortcut)") { model.apply(entry.id) }
-                    .disabled(model.isSwitching || !model.trusted || !model.store.isValid || entry.shortcut == nil)
+                    .disabled(
+                        model.readiness.installLocation != .installed
+                            || model.isSwitching
+                            || !model.trusted
+                            || !model.store.isValid
+                            || entry.shortcut == nil
+                    )
             }
         }
         Divider()
@@ -162,7 +173,11 @@ struct MenuBarContent: View {
             model.openSettings()
         }
         Divider()
-        Text(model.permissionState.message)
+        Text(
+            model.readiness.installLocation == .installed
+                ? model.permissionState.message
+                : "Installation required"
+        )
         if let version = model.chatGPTVersion { Text("ChatGPT \(version)") }
         Label(model.status.message, systemImage: model.status.systemImage).lineLimit(3)
         Divider()

@@ -17,7 +17,7 @@ If the release page does not contain a signed DMG and `SHA256SUMS`, the binary r
 1. Open the downloaded DMG.
 2. Drag **ReasonDeck** to **Applications**.
 3. Open the app from Applications. It appears in the menu bar instead of the Dock.
-4. In the Settings window, grant Accessibility and Input Monitoring when macOS requests them.
+4. In the Settings window, choose **Allow Accessibility** and **Allow Input Monitoring**, then enable ReasonDeck in the System Settings pane that opens.
 5. Choose **Add Shortcut**, record a keyboard command, then select its model and reasoning effort.
 
 Official binary releases must be signed with Developer ID and notarized by Apple. Never install a release that requires a Gatekeeper bypass or a terminal command.
@@ -58,7 +58,9 @@ Supported efforts: Extra High, Medium, Light, Ultra, High, and Max.
 - **Accessibility** lets the app find the model and reasoning controls in the active ChatGPT window, select them, and verify the final title.
 - **Input Monitoring** lets the app receive your configured keyboard shortcuts. Ordinary keys are not valid shortcuts, and unrelated apps keep receiving their keys.
 
-The Settings window shows both permission states and links directly to the matching macOS panes. After granting Input Monitoring, choose **Retry Hotkeys** or relaunch the app.
+ReasonDeck requests each permission and opens the matching macOS pane. Turn on ReasonDeck, then return to the app; it checks both permissions again and restarts its hotkey listener automatically. macOS requires this final approval and does not allow apps to enable their own privacy switches.
+
+Privacy permissions attach to a specific installed app. If ReasonDeck is opened from Downloads or an Xcode build folder, Settings first offers to copy that signed app bundle to `/Applications` and relaunch it. It never overwrites an existing installation. Ordinary users should not need to press the `+` button in System Settings or browse for a build artifact manually.
 
 ## Privacy and safety
 
@@ -90,8 +92,9 @@ brew upgrade --cask reasondeck
 
 ## Troubleshooting
 
-- **Profile actions are disabled:** Open Settings and grant the permission marked Required. Reopen the same installed app if macOS asks.
-- **Hotkeys do not respond:** Grant Input Monitoring, then choose **Retry Hotkeys** or relaunch.
+- **Profile actions are disabled:** Open Settings and choose the **Allow** action beside the permission marked Required. Enable the installed ReasonDeck app in the macOS pane that opens.
+- **ReasonDeck is absent from a privacy list:** Confirm that you opened `/Applications/ReasonDeck.app`, choose the matching **Allow** action again, and return to ReasonDeck. Manual `+` registration is a developer recovery step, not normal onboarding.
+- **Hotkeys do not respond:** Grant Input Monitoring and return to ReasonDeck. The app retries its hotkey listener automatically; relaunch once if macOS requests it.
 - **Only the model changes:** The requested effort was unavailable or could not be verified. The status explains the partial result.
 - **A shortcut will not record:** Include Command, Option, or Control. Escape cancels recording; unmodified Delete clears the current combination.
 - **A shortcut is rejected:** Another entry already uses the same combination.
@@ -140,7 +143,7 @@ Building from source requires Xcode with the macOS SDK.
    open build/Build/Products/Release/ReasonDeck.app
    ```
 
-Use a consistently signed Release build for live permission testing. The SwiftPM debug executable is not the supported live app identity.
+The first launch from the build folder offers to install that signed app bundle in `/Applications` and relaunch it. The install action refuses to overwrite an existing copy. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity.
 
 CI runs tests and an unsigned universal Release build. It receives no Apple credentials and cannot publish an app.
 

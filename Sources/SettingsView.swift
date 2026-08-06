@@ -4,40 +4,42 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var store: ProfileStore
     @Bindable var readiness: PermissionReadiness
-    let onRetryHotkeys: () -> Void
     @State private var assignmentError: String?
 
     var body: some View {
         Form {
-            Section("Setup") {
-                VStack(spacing: 0) {
-                    permissionRow(
-                        title: "Accessibility",
-                        isGranted: readiness.snapshot.accessibilityGranted
-                    ) {
-                        Button("Request Permission…") { readiness.requestAccessibility() }
-                        Button("Open Settings…") { readiness.openAccessibilitySettings() }
+            if readiness.installLocation == .installed {
+                Section("Setup") {
+                    VStack(spacing: 0) {
+                        permissionRow(
+                            title: "Accessibility",
+                            isGranted: readiness.snapshot.accessibilityGranted
+                        ) {
+                            Button("Allow Accessibility…") { readiness.requestAccessibility() }
+                        }
+
+                        Divider()
+                            .padding(.vertical, 12)
+
+                        permissionRow(
+                            title: "Input Monitoring",
+                            isGranted: readiness.snapshot.inputMonitoringGranted
+                        ) {
+                            Button("Allow Input Monitoring…") { readiness.requestInputMonitoring() }
+                        }
+
+                        Divider()
+                            .padding(.vertical, 12)
+
+                        Text("macOS will open System Settings. Turn on ReasonDeck, then return here. Permissions are checked again automatically.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-
-                    Divider()
-                        .padding(.vertical, 12)
-
-                    permissionRow(
-                        title: "Input Monitoring",
-                        isGranted: readiness.snapshot.inputMonitoringGranted
-                    ) {
-                        Button("Request Permission…") { readiness.requestInputMonitoring() }
-                        Button("Open Settings…") { readiness.openInputMonitoringSettings() }
-                        Button("Retry Hotkeys") { onRetryHotkeys() }
-                    }
-
-                    Divider()
-                        .padding(.vertical, 12)
-
-                    Text("ChatGPT must be installed and frontmost when you use a shortcut. This app only inspects the active ChatGPT window.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            } else {
+                Section("Install ReasonDeck") {
+                    installationGuidance
                 }
             }
 
@@ -124,6 +126,52 @@ struct SettingsView: View {
         } message: {
             Text(assignmentError ?? "")
         }
+        .alert("Installation Unavailable", isPresented: Binding(
+            get: { readiness.installationError != nil },
+            set: { if !$0 { readiness.clearInstallationError() } }
+        )) {
+            Button("OK") { readiness.clearInstallationError() }
+        } message: {
+            Text(readiness.installationError ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var installationGuidance: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            switch readiness.installLocation {
+            case .requiresInstallation:
+                Label("Install before granting permissions", systemImage: "app.badge.checkmark")
+                    .font(.headline)
+
+                Text("macOS attaches privacy permissions to a specific installed app. Install this copy in Applications first so those permissions remain stable after relaunching.")
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Spacer()
+                    Button("Install in Applications") {
+                        readiness.installInApplications()
+                    }
+                    .disabled(readiness.isInstalling)
+
+                    if readiness.isInstalling {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+
+            case .unsupportedBuild:
+                Label("Open the signed app build", systemImage: "hammer")
+                    .font(.headline)
+
+                Text("This executable is not inside a macOS app bundle, so it cannot keep a stable privacy identity. Build and open ReasonDeck.app before testing permissions.")
+                    .foregroundStyle(.secondary)
+
+            case .installed:
+                EmptyView()
+            }
+        }
+        .padding(.vertical, 4)
     }
 
     private var addShortcutButton: some View {
