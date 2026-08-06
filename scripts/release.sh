@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+
 readonly PROJECT="ChatGPTProfileKeys.xcodeproj"
 readonly SCHEME="ChatGPTProfileKeys"
 readonly APP_BUNDLE_ID="com.thierryai.ChatGPTProfileKeys"
@@ -77,7 +80,7 @@ done
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must use MAJOR.MINOR.PATCH"
 [[ -n "$notary_profile" ]] || fail "--notary-profile is required"
 
-for tool in awk codesign ditto git grep hdiutil lipo plutil security sed shasum spctl xcodebuild xcrun; do
+for tool in awk basename cat codesign ditto git grep hdiutil lipo ln mkdir mktemp plutil rm security sed shasum spctl tail xcodebuild xcrun; do
     require_command "$tool"
 done
 
@@ -154,8 +157,8 @@ fi
 output_dir="$repo_root/dist/$expected_tag"
 [[ ! -e "$output_dir" ]] || fail "output already exists: $output_dir"
 
-work_dir="$output_dir/work"
 logs_dir="$output_dir/logs"
+work_dir="$(mktemp -d "/private/tmp/ChatGPTProfileKeys-release-$version.XXXXXX")"
 archive_path="$work_dir/ChatGPTProfileKeys.xcarchive"
 export_path="$work_dir/export"
 export_options="$work_dir/ExportOptions.plist"
@@ -169,7 +172,19 @@ evidence_path="$output_dir/release-evidence.txt"
 app_notary_report="$output_dir/notarization-app.json"
 dmg_notary_report="$output_dir/notarization-dmg.json"
 
-mkdir -p "$work_dir" "$logs_dir" "$export_path" "$staging_dir"
+mounted=false
+mount_dir=""
+cleanup() {
+    if $mounted && [[ -n "$mount_dir" ]]; then
+        hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
+    fi
+    if [[ "$work_dir" == /private/tmp/ChatGPTProfileKeys-release-* ]]; then
+        rm -rf "$work_dir"
+    fi
+}
+trap cleanup EXIT
+
+mkdir -p "$logs_dir" "$export_path" "$staging_dir"
 
 plutil -create xml1 "$export_options"
 plutil -insert destination -string export "$export_options"
@@ -292,13 +307,6 @@ spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg
 
 mount_dir="$work_dir/mounted"
 mkdir -p "$mount_dir"
-mounted=false
-cleanup_mount() {
-    if $mounted; then
-        hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
-    fi
-}
-trap cleanup_mount EXIT
 
 hdiutil attach -nobrowse -readonly -mountpoint "$mount_dir" "$dmg_path" >"$logs_dir/hdiutil-attach.log" 2>&1
 mounted=true
@@ -312,6 +320,7 @@ mounted=false
 
 digest="$(shasum -a 256 "$dmg_path" | awk '{ print $1 }')"
 printf '%s  %s\n' "$digest" "$(basename "$dmg_path")" >"$checksum_path"
+(cd "$output_dir" && shasum -a 256 -c SHA256SUMS) >"$logs_dir/checksum-verify.log" 2>&1
 
 cat >"$evidence_path" <<EVIDENCE
 Version: $version

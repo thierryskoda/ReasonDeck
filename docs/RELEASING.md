@@ -74,7 +74,9 @@ Successful output is stored under `dist/v<version>/`:
 - `SHA256SUMS`
 - `release-evidence.txt`
 - Apple notarization reports
-- Local diagnostic logs and intermediate work, which are not release assets
+- Local diagnostic logs, which are not release assets
+
+Large archive and packaging intermediates use a validated temporary directory and are removed when the command exits. If a failed run leaves `dist/v<version>/`, inspect its logs and remove that failed output directory before retrying the same version.
 
 Only the DMG and `SHA256SUMS` are public release assets.
 
