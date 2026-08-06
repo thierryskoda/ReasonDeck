@@ -15,7 +15,7 @@ private final class AXBox: @unchecked Sendable {
 }
 
 actor SystemAccessibilityClient: AccessibilityClient {
-    private let logger = Logger(subsystem: "com.thierryai.ModelKey", category: "switching")
+    private let logger = Logger(subsystem: "com.thierryai.ReasonDeck", category: "switching")
     private let deadline: Duration = .seconds(2)
     private let cacheLifetime: Duration = .seconds(1)
     private var cachedContext: (context: Context, expiresAt: ContinuousClock.Instant)?

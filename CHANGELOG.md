@@ -6,7 +6,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ### Added
 
-- Establish ModelKey as the public product, bundle, and release identity.
+- Establish ReasonDeck as the public product, bundle, and release identity.
 - Create, edit, and delete any number of model-and-reasoning keyboard shortcuts.
 - Start with no default shortcuts and configure each keyboard command in Settings.
 - Show Accessibility and Input Monitoring readiness directly in Settings.

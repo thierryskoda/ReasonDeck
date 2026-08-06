@@ -5,11 +5,11 @@ set -euo pipefail
 PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 export PATH
 
-readonly PROJECT="ModelKey.xcodeproj"
-readonly SCHEME="ModelKey"
-readonly APP_BUNDLE_ID="com.thierryai.ModelKey"
-readonly EXPORTED_APP_NAME="ModelKey.app"
-readonly DISTRIBUTED_APP_NAME="ModelKey.app"
+readonly PROJECT="ReasonDeck.xcodeproj"
+readonly SCHEME="ReasonDeck"
+readonly APP_BUNDLE_ID="com.thierryai.ReasonDeck"
+readonly EXPORTED_APP_NAME="ReasonDeck.app"
+readonly DISTRIBUTED_APP_NAME="ReasonDeck.app"
 
 fail() {
     printf 'release: %s\n' "$*" >&2
@@ -158,15 +158,15 @@ output_dir="$repo_root/dist/$expected_tag"
 [[ ! -e "$output_dir" ]] || fail "output already exists: $output_dir"
 
 logs_dir="$output_dir/logs"
-work_dir="$(mktemp -d "/private/tmp/ModelKey-release-$version.XXXXXX")"
-archive_path="$work_dir/ModelKey.xcarchive"
+work_dir="$(mktemp -d "/private/tmp/ReasonDeck-release-$version.XXXXXX")"
+archive_path="$work_dir/ReasonDeck.xcarchive"
 export_path="$work_dir/export"
 export_options="$work_dir/ExportOptions.plist"
 exported_app="$export_path/$EXPORTED_APP_NAME"
 staging_dir="$work_dir/dmg-root"
 distributed_app="$staging_dir/$DISTRIBUTED_APP_NAME"
-app_zip="$work_dir/ModelKey-$version.zip"
-dmg_path="$output_dir/ModelKey-$version.dmg"
+app_zip="$work_dir/ReasonDeck-$version.zip"
+dmg_path="$output_dir/ReasonDeck-$version.dmg"
 checksum_path="$output_dir/SHA256SUMS"
 evidence_path="$output_dir/release-evidence.txt"
 app_notary_report="$output_dir/notarization-app.json"
@@ -178,7 +178,7 @@ cleanup() {
     if $mounted && [[ -n "$mount_dir" ]]; then
         hdiutil detach "$mount_dir" >/dev/null 2>&1 || true
     fi
-    if [[ "$work_dir" == /private/tmp/ModelKey-release-* ]]; then
+    if [[ "$work_dir" == /private/tmp/ReasonDeck-release-* ]]; then
         rm -rf "$work_dir"
     fi
 }
@@ -229,7 +229,7 @@ fi
 actual_version="$(plutil -extract CFBundleShortVersionString raw "$exported_app/Contents/Info.plist")"
 actual_build="$(plutil -extract CFBundleVersion raw "$exported_app/Contents/Info.plist")"
 actual_bundle_id="$(plutil -extract CFBundleIdentifier raw "$exported_app/Contents/Info.plist")"
-actual_archs="$(lipo -archs "$exported_app/Contents/MacOS/ModelKey")"
+actual_archs="$(lipo -archs "$exported_app/Contents/MacOS/ReasonDeck")"
 
 [[ "$actual_version" == "$version" ]] || fail "exported app version mismatch: $actual_version"
 [[ "$actual_build" == "$effective_build" ]] || fail "exported app build mismatch: $actual_build"
@@ -290,7 +290,7 @@ ln -s /Applications "$staging_dir/Applications"
 
 printf 'Creating signed disk image…\n'
 hdiutil create \
-    -volname "ModelKey" \
+    -volname "ReasonDeck" \
     -srcfolder "$staging_dir" \
     -format UDZO \
     -ov \

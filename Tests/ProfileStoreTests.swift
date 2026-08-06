@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import ModelKey
+@testable import ReasonDeck
 
 @MainActor
 private func isolatedDefaults() -> UserDefaults {

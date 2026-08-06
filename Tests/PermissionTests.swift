@@ -1,5 +1,5 @@
 import Testing
-@testable import ModelKey
+@testable import ReasonDeck
 
 @Test func permissionSnapshotRequiresAccessibilityFirst() {
     let snapshot = PermissionSnapshot(

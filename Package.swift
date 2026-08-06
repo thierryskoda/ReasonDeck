@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "ModelKey",
+    name: "ReasonDeck",
     platforms: [.macOS(.v14)],
-    products: [.executable(name: "ModelKey", targets: ["ModelKey"])],
+    products: [.executable(name: "ReasonDeck", targets: ["ReasonDeck"])],
     targets: [
-        .executableTarget(name: "ModelKey", path: "Sources"),
-        .testTarget(name: "ModelKeyTests", dependencies: ["ModelKey"], path: "Tests")
+        .executableTarget(name: "ReasonDeck", path: "Sources"),
+        .testTarget(name: "ReasonDeckTests", dependencies: ["ReasonDeck"], path: "Tests")
     ]
 )

@@ -50,7 +50,7 @@ private final class HotkeyRegistry: @unchecked Sendable {
 
 final class HotkeyEventTap: @unchecked Sendable {
     enum State: Equatable { case stopped, running, permissionRequired }
-    private let logger = Logger(subsystem: "com.thierryai.ModelKey", category: "hotkeys")
+    private let logger = Logger(subsystem: "com.thierryai.ReasonDeck", category: "hotkeys")
     private let lock = NSLock()
     private let registry = HotkeyRegistry()
     private var tap: CFMachPort?

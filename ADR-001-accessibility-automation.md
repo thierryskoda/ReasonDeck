@@ -5,7 +5,7 @@
 
 ## Context
 
-ModelKey needs to change the active conversation's model and reasoning effort without modifying ChatGPT, depending on an undocumented private API, or retaining chat data. In the tested Chromium-based ChatGPT/Codex Mac app, the composer profile picker and its nested menus are not consistently exposed as directly actionable Accessibility pop-up controls. The UI also closes and rebuilds the menu after a model selection.
+ReasonDeck needs to change the active conversation's model and reasoning effort without modifying ChatGPT, depending on an undocumented private API, or retaining chat data. In the tested Chromium-based ChatGPT/Codex Mac app, the composer profile picker and its nested menus are not consistently exposed as directly actionable Accessibility pop-up controls. The UI also closes and rebuilds the menu after a model selection.
 
 The safe target is therefore not merely a location on screen. It is the profile control in the active ChatGPT window's normal composer, with recognizable labels, bounded geometry, actionable menu content, and a verifiable final title.
 
@@ -24,7 +24,7 @@ Use a frontmost-app-scoped event tap for user-configured shortcuts and drive Cha
 
 Frontmost scoping is mandatory in the switching interface. Callers cannot opt into targeting a background process. The shortcut collection is dynamic and starts empty. Keyboard combinations must be unique, while model and effort selections remain configurable only from closed exact-label sets. Invalid persisted configuration disables switching until an explicit reset; it is never silently repaired.
 
-Development and public distribution intentionally use different certificate classes, but the public application keeps the tracked bundle identifier `com.thierryai.ModelKey`. Certificate material, team-specific configuration, and notarization credentials remain outside source control. Every published upgrade must be verified against the same public designated identity before it is offered to users.
+Development and public distribution intentionally use different certificate classes, but the public application keeps the tracked bundle identifier `com.thierryai.ReasonDeck`. Certificate material, team-specific configuration, and notarization credentials remain outside source control. Every published upgrade must be verified against the same public designated identity before it is offered to users.
 
 Freshly verified window and picker context may be cached for at most one second between phases. Selection operations return their observed title to the coordinator so verification does not repeat a full Accessibility traversal. These are bounded performance optimizations, not a relaxation of the verification rules.
 

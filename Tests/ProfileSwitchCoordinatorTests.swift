@@ -1,5 +1,5 @@
 import Testing
-@testable import ModelKey
+@testable import ReasonDeck
 
 actor FakeAccessibilityClient: AccessibilityClient {
     var title: String

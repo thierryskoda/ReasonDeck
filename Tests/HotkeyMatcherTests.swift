@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 import Testing
-@testable import ModelKey
+@testable import ReasonDeck
 
 private let firstID = UUID()
 private let secondID = UUID()
