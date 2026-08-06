@@ -20,7 +20,7 @@ If the release page does not contain a signed DMG and `SHA256SUMS`, the binary r
 4. In the Settings window, grant Accessibility and Input Monitoring when macOS requests them.
 5. Choose **Add Shortcut**, record a keyboard command, then select its model and reasoning effort.
 
-The app is signed with Developer ID and notarized by Apple. Installation should not require a Gatekeeper bypass or a terminal command.
+Official binary releases must be signed with Developer ID and notarized by Apple. Never install a release that requires a Gatekeeper bypass or a terminal command.
 
 ### Homebrew
 
