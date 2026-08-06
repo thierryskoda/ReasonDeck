@@ -1,38 +1,132 @@
 # ChatGPT Profile Keys
 
-ChatGPT Profile Keys is a small macOS menu-bar utility for switching the active ChatGPT conversation with keyboard shortcuts you configure.
+ChatGPT Profile Keys is a small macOS menu-bar app for switching the active ChatGPT conversation with keyboard shortcuts you choose.
+
+It is local-only, starts with no shortcuts, and is unofficial. It is not affiliated with or endorsed by OpenAI.
 
 ![Profile settings](docs/settings.png)
 
-This is a source-first beta. There is no signed or notarized download yet. The project is unofficial and is not affiliated with or endorsed by OpenAI.
+## Download for Mac
 
-## How it works
+Download the latest `ChatGPT-Profile-Keys-<version>.dmg` from [GitHub Releases](https://github.com/thierryskoda/ChatGPTProfileKeys/releases/latest).
 
-The app starts with no shortcuts. Open **Settings**, choose **Add Shortcut**, click **Set Shortcut**, and type the keyboard combination you want. Then choose its model and reasoning effort. Add as many entries as you need, edit any combination by recording it again, or remove an entry with its trash button.
+If the release page does not contain a signed DMG and `SHA256SUMS`, the binary release is not ready yet. Do not download repackaged copies from another source.
 
-Every shortcut must include Command, Option, or Control. This prevents an ordinary typing key from being intercepted. Duplicate combinations are rejected.
+### Install
 
-Shortcuts are intercepted only when ChatGPT is frontmost. In every other app they pass through unchanged. Menu actions and shortcuts resolve the same current settings at the moment they run.
+1. Open the downloaded DMG.
+2. Drag **ChatGPT Profile Keys** to **Applications**.
+3. Open the app from Applications. It appears in the menu bar instead of the Dock.
+4. In the Settings window, grant Accessibility and Input Monitoring when macOS requests them.
+5. Choose **Add Shortcut**, record a keyboard command, then select its model and reasoning effort.
+
+The app is signed with Developer ID and notarized by Apple. Installation should not require a Gatekeeper bypass or a terminal command.
+
+### Homebrew
+
+The custom Homebrew Cask will install the same notarized DMG published on GitHub. After the v0.1 Cask is available:
+
+```sh
+brew install --cask thierryskoda/tap/chatgpt-profile-keys
+```
+
+Direct download remains the primary installation path.
 
 ## Requirements
 
 - macOS 14 or later
-- Xcode with the macOS SDK
 - The English ChatGPT Mac app (`com.openai.codex`)
-- Accessibility permission for inspecting and selecting the active composer controls
-- Input Monitoring permission if macOS requests it for global shortcuts
+- Accessibility permission to find and select the active composer controls
+- Input Monitoring permission for app-scoped keyboard shortcuts
 
-The current compatibility baseline is ChatGPT Mac `26.727.51351`, using the normal conversation layout with the composer visible. Preview and sidebar layouts are not supported.
+The current compatibility baseline is ChatGPT Mac `26.727.51351`, using a normal conversation with the composer visible. Preview and sidebar layouts are not supported.
 
-## Quick start
+## Use shortcuts
 
-1. Create a local signing file:
+The app starts with no shortcuts. Open **Settings**, choose **Add Shortcut**, click **Set Shortcut**, and type the keyboard combination you want. Then choose its model and reasoning effort.
+
+You can add as many entries as you need, replace any keyboard command by recording it again, or remove an entry with its trash button. Every shortcut must include Command, Option, or Control. Duplicate combinations are rejected.
+
+Shortcuts run only when ChatGPT is frontmost. In every other app, the same keys pass through unchanged. ChatGPT may not offer every model-and-effort combination in every account or conversation. If the model succeeds but the effort is unavailable, the app reports a partial result and does not guess or roll the model back.
+
+Supported models: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
+
+Supported efforts: Extra High, Medium, Light, Ultra, High, and Max.
+
+## Why permissions are required
+
+- **Accessibility** lets the app find the model and reasoning controls in the active ChatGPT window, select them, and verify the final title.
+- **Input Monitoring** lets the app receive your configured keyboard shortcuts. Ordinary keys are not valid shortcuts, and unrelated apps keep receiving their keys.
+
+The Settings window shows both permission states and links directly to the matching macOS panes. After granting Input Monitoring, choose **Retry Hotkeys** or relaunch the app.
+
+## Privacy and safety
+
+The app has no network implementation. It does not request ChatGPT account credentials and does not collect, store, log, or transmit chat content. It stores only shortcut, model, and reasoning preferences in macOS `UserDefaults`.
+
+The switching path fails closed. It acts only after confirming that ChatGPT is frontmost and the normal composer profile control, expected item, and resulting title can be verified. It prefers Accessibility actions. When Chromium exposes only a framed control, it can use a validated composer-relative pointer click and immediately restore the pointer. It never stores fixed screen coordinates.
+
+Model is applied before effort because selecting a model closes and rebuilds ChatGPT's menu. Already-selected phases are skipped. See [ADR-001](ADR-001-accessibility-automation.md) for the safety rationale.
+
+## Verify a switch
+
+1. Open an idle, normal-layout ChatGPT conversation with the composer visible.
+2. Choose a configured entry from the helper menu and confirm the composer title matches both values.
+3. Repeat with its recorded keyboard shortcut.
+4. Bring another app frontmost and confirm the same key combination passes through unchanged.
+
+Two visible menu interactions are expected when both values change. A brief pointer movement can appear during the validated geometry fallback.
+
+## Update
+
+Download the newer DMG and replace the app in Applications. Keep the bundle identifier and Developer ID identity stable across versions so macOS can associate the app with the same installation. Saved shortcuts are stored outside the app bundle and should remain available after replacement.
+
+Homebrew users can update with:
+
+```sh
+brew update
+brew upgrade --cask chatgpt-profile-keys
+```
+
+## Troubleshooting
+
+- **Profile actions are disabled:** Open Settings and grant the permission marked Required. Reopen the same installed app if macOS asks.
+- **Hotkeys do not respond:** Grant Input Monitoring, then choose **Retry Hotkeys** or relaunch.
+- **Only the model changes:** The requested effort was unavailable or could not be verified. The status explains the partial result.
+- **A shortcut will not record:** Include Command, Option, or Control. Escape cancels recording; unmodified Delete clears the current combination.
+- **A shortcut is rejected:** Another entry already uses the same combination.
+- **Saved shortcuts need reset:** Open Settings and choose **Reset to Empty**.
+- **A ChatGPT update breaks switching:** Treat that UI as incompatible until its Accessibility structure is revalidated. Do not replace targeting with fixed coordinates.
+
+## Uninstall
+
+Quit ChatGPT Profile Keys and move it from Applications to the Trash. You can also remove it from Accessibility and Input Monitoring in System Settings.
+
+Ordinary uninstall leaves saved shortcuts in place for a later reinstall. To remove those preferences too:
+
+```sh
+defaults delete com.thierryai.ChatGPTProfileKeys
+```
+
+Homebrew users can uninstall the app while keeping preferences:
+
+```sh
+brew uninstall --cask chatgpt-profile-keys
+```
+
+Use `brew uninstall --zap --cask chatgpt-profile-keys` only when you also want the Cask's documented app-owned preferences removed.
+
+## Build from source
+
+Building from source requires Xcode with the macOS SDK.
+
+1. Create the ignored local signing file:
 
    ```sh
    cp Config/Local.xcconfig.example Config/Local.xcconfig
    ```
 
-2. Edit `Config/Local.xcconfig` with your Apple development team and a bundle identifier you will keep stable.
+2. Set `DEVELOPMENT_TEAM` to your Apple development team. Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants.
 3. Test and build:
 
    ```sh
@@ -46,54 +140,11 @@ The current compatibility baseline is ChatGPT Mac `26.727.51351`, using the norm
    open build/Build/Products/Release/ChatGPTProfileKeys.app
    ```
 
-4. Use the menu-bar switch icon to grant permissions, then quit and reopen the signed Release app if macOS asks.
+Use a consistently signed Release build for live permission testing. The SwiftPM debug executable is not the supported live app identity.
 
-Keep the team, bundle identifier, and signing identity stable. macOS privacy grants are tied to the app's designated signing identity. Do not use the SwiftPM debug executable for live permission testing.
+CI runs tests and an unsigned universal Release build. It receives no Apple credentials and cannot publish an app.
 
-CI runs tests and an unsigned Release build. It receives no Apple credentials and does not publish an app.
-
-## Configuration
-
-Each entry has an editable keyboard combination and exact model and effort choices. Arbitrary model or effort text remains deliberately unsupported because these labels are used to validate Accessibility targets.
-
-Supported models: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
-
-Supported efforts: Extra High, Medium, Light, Ultra, High, and Max.
-
-ChatGPT may not offer every combination in every account or conversation. If the model succeeds but the effort is unavailable, the helper reports a partial result and does not roll the model back.
-
-If saved configuration is corrupt, switching and editing are disabled until you explicitly choose **Reset to Empty**. The app does not silently guess or repair mappings.
-
-## Privacy and safety
-
-The app has no network implementation. It does not request account credentials and does not collect, store, log, or transmit chat content. It stores only your shortcut, model, and reasoning preferences in `UserDefaults`.
-
-The switching path fails closed. It acts only after confirming that ChatGPT is frontmost and the normal composer profile control, expected row or item, and resulting title can be verified. It prefers Accessibility actions. When Chromium exposes only a framed control, it can use a validated composer-relative pointer click and immediately restores the pointer. It never stores fixed screen coordinates.
-
-Model is applied before effort because selecting a model closes and rebuilds ChatGPT's menu. Already-selected phases are skipped. See [ADR-001](ADR-001-accessibility-automation.md) for the safety rationale.
-
-## Verify a switch
-
-1. Open an idle normal-layout ChatGPT conversation with the composer visible.
-2. Choose a configured entry from the helper menu and confirm the composer title matches both values.
-3. Repeat with its recorded keyboard shortcut.
-4. Bring another app frontmost and confirm the same key combination passes through unchanged.
-
-Two visible menu interactions are expected when both values change. A brief pointer movement can appear during the validated geometry fallback.
-
-## Troubleshooting
-
-- **Profile actions are disabled:** grant Accessibility permission, quit the helper, and reopen the same signed Release app. Use **Retry Hotkeys** if Input Monitoring was just granted.
-- **Only the model changes:** the effort was unavailable or could not be verified. The status explains the partial result.
-- **A shortcut will not record:** include Command, Option, or Control. Escape cancels recording; unmodified Delete clears the current combination.
-- **A shortcut is rejected:** another entry already uses the same combination.
-- **Saved shortcuts need reset:** open Settings and choose **Reset to Empty**.
-- **A ChatGPT update breaks switching:** treat that UI as incompatible until its Accessibility tree and relative composer geometry are revalidated. Do not replace the targeting with fixed coordinates.
-- **Code-sign verification reports a trust error:** verify that Xcode sees a valid Apple Development identity and that its certificate chain is trusted in the login keychain.
-
-## Remove
-
-Quit the helper, delete its app bundle, remove it from Accessibility and Input Monitoring in System Settings, and delete its preference domain if you also want to remove saved profile choices. The preference domain matches the bundle identifier configured in `Config/Local.xcconfig`.
+Maintainers should follow [the release procedure](docs/RELEASING.md).
 
 ## License
 
