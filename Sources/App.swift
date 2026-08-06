@@ -17,7 +17,7 @@ final class SettingsWindowController {
             let window = NSWindow(contentViewController: controller)
             window.title = "Shortcuts"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-            window.setContentSize(NSSize(width: 560, height: 560))
+            window.setContentSize(NSSize(width: 560, height: 500))
             window.minSize = NSSize(width: 520, height: 440)
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("ShortcutSettingsWindow")

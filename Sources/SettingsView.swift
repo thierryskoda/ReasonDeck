@@ -10,26 +10,35 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Setup") {
-                permissionRow(
-                    title: "Accessibility",
-                    isGranted: readiness.snapshot.accessibilityGranted
-                ) {
-                    Button("Request Permission…") { readiness.requestAccessibility() }
-                    Button("Open Settings…") { readiness.openAccessibilitySettings() }
-                }
+                VStack(spacing: 0) {
+                    permissionRow(
+                        title: "Accessibility",
+                        isGranted: readiness.snapshot.accessibilityGranted
+                    ) {
+                        Button("Request Permission…") { readiness.requestAccessibility() }
+                        Button("Open Settings…") { readiness.openAccessibilitySettings() }
+                    }
 
-                permissionRow(
-                    title: "Input Monitoring",
-                    isGranted: readiness.snapshot.inputMonitoringGranted
-                ) {
-                    Button("Request Permission…") { readiness.requestInputMonitoring() }
-                    Button("Open Settings…") { readiness.openInputMonitoringSettings() }
-                    Button("Retry Hotkeys") { onRetryHotkeys() }
-                }
+                    Divider()
+                        .padding(.vertical, 12)
 
-                Text("ChatGPT must be installed and frontmost when you use a shortcut. This app only inspects the active ChatGPT window.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    permissionRow(
+                        title: "Input Monitoring",
+                        isGranted: readiness.snapshot.inputMonitoringGranted
+                    ) {
+                        Button("Request Permission…") { readiness.requestInputMonitoring() }
+                        Button("Open Settings…") { readiness.openInputMonitoringSettings() }
+                        Button("Retry Hotkeys") { onRetryHotkeys() }
+                    }
+
+                    Divider()
+                        .padding(.vertical, 12)
+
+                    Text("ChatGPT must be installed and frontmost when you use a shortcut. This app only inspects the active ChatGPT window.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             if store.isValid {
@@ -41,7 +50,7 @@ struct SettingsView: View {
                     } actions: {
                         addShortcutButton
                     }
-                    .frame(maxWidth: .infinity, minHeight: 340)
+                    .frame(maxWidth: .infinity, minHeight: 260)
                 } else {
                     ForEach(store.entries) { entry in
                         Section {
@@ -101,11 +110,11 @@ struct SettingsView: View {
                 } actions: {
                     Button("Reset to Empty") { store.reset() }
                 }
-                .frame(maxWidth: .infinity, minHeight: 340)
+                .frame(maxWidth: .infinity, minHeight: 260)
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 560)
+        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 500)
         .navigationTitle("Shortcuts")
         .alert("Shortcut Unavailable", isPresented: Binding(
             get: { assignmentError != nil },
@@ -131,15 +140,23 @@ struct SettingsView: View {
         isGranted: Bool,
         @ViewBuilder actions: () -> Actions
     ) -> some View {
-        LabeledContent(title) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                Text(title)
+
+                Spacer(minLength: 12)
+
                 Label(
                     isGranted ? "Granted" : "Required",
                     systemImage: isGranted ? "checkmark.circle.fill" : "exclamationmark.circle"
                 )
+                .font(.callout)
                 .foregroundStyle(isGranted ? .green : .secondary)
+            }
 
-                if !isGranted {
+            if !isGranted {
+                HStack(spacing: 8) {
+                    Spacer(minLength: 0)
                     actions()
                 }
             }
