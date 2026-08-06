@@ -210,10 +210,18 @@ actor SystemAccessibilityClient: AccessibilityClient {
     private func waitForMenuItem(named name: String, in root: AXUIElement) async throws -> AXUIElement? {
         let clock = ContinuousClock(); let end = clock.now.advanced(by: deadline)
         while clock.now < end {
-            let candidates = breadthFirst(root: root, maxDepth: 18, maxNodes: 3_500).filter {
-                labels($0).contains(name) && frame($0) != nil && (value($0, kAXEnabledAttribute) as Bool? ?? true)
+            var rightmostItem: (element: AXUIElement, minX: CGFloat)?
+            for element in breadthFirst(root: root, maxDepth: 18, maxNodes: 3_500) {
+                guard labels(element).contains(name),
+                      let elementFrame = frame(element),
+                      value(element, kAXEnabledAttribute) as Bool? ?? true
+                else { continue }
+                if let current = rightmostItem, elementFrame.minX <= current.minX {
+                    continue
+                }
+                rightmostItem = (element, elementFrame.minX)
             }
-            if let item = candidates.max(by: { (frame($0)?.minX ?? 0) < (frame($1)?.minX ?? 0) }) { return item }
+            if let rightmostItem { return rightmostItem.element }
             try await Task.sleep(for: .milliseconds(50))
         }
         return nil
