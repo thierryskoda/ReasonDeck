@@ -1,0 +1,13 @@
+.build/
+build/
+DerivedData/
+dist/
+*.xcarchive/
+*.dmg
+*.p12
+*.cer
+*.provisionprofile
+*.xcuserstate
+xcuserdata/
+Config/Local.xcconfig
+.agent/plans/

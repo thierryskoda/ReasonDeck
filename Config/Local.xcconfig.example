@@ -1,0 +1,7 @@
+// Copy this file to Local.xcconfig and keep that file untracked.
+// Use one stable team for builds that need macOS privacy grants.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+
+// The tracked bundle identifier is intentionally stable. Override it only when
+// you deliberately want a separate development identity and separate grants.
+// APP_BUNDLE_IDENTIFIER = com.example.ChatGPTProfileKeys
