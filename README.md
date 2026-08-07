@@ -8,7 +8,11 @@ It is local-only, starts with no shortcuts, and is unofficial. It is not affilia
 
 ## Download for Mac
 
-Download the latest `ReasonDeck-<version>.dmg` from [GitHub Releases](https://github.com/thierryskoda/reasondeck/releases/latest).
+### [⬇ Download ReasonDeck 0.1.0 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.1.0/ReasonDeck-0.1.0.dmg)
+
+Universal app for Apple silicon and Intel · macOS 14 or later
+
+[View release notes and SHA-256 checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.1.0)
 
 If the release page does not contain a signed DMG and `SHA256SUMS`, the binary release is not ready yet. Do not download repackaged copies from another source.
 
