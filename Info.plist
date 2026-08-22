@@ -12,6 +12,6 @@
     <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
-    <key>NSAccessibilityUsageDescription</key><string>ReasonDeck uses Accessibility only to select the model and reasoning controls in the active ChatGPT window.</string>
+    <key>NSAccessibilityUsageDescription</key><string>ReasonDeck uses Accessibility only to select model and reasoning controls in the active ChatGPT or Cursor window.</string>
 </dict>
 </plist>

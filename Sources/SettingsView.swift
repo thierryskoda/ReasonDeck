@@ -4,105 +4,31 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var store: ProfileStore
     @Bindable var readiness: PermissionReadiness
+    let beginShortcutRecording: (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool
+    let cancelShortcutRecording: () -> Void
     @State private var assignmentError: String?
+    @State private var selectedTab: ShortcutSettingsTab = .modelSwitching
+    @State private var expandedEntryIDs: Set<UUID> = []
+    @State private var showsPermissionDetails = false
 
     var body: some View {
         Form {
-            if readiness.installLocation == .installed {
-                Section("Setup") {
-                    VStack(spacing: 0) {
-                        permissionRow(
-                            title: "Accessibility",
-                            isGranted: readiness.snapshot.accessibilityGranted
-                        ) {
-                            Button("Allow Accessibility…") { readiness.requestAccessibility() }
-                        }
-
-                        Divider()
-                            .padding(.vertical, 12)
-
-                        permissionRow(
-                            title: "Input Monitoring",
-                            isGranted: readiness.snapshot.inputMonitoringGranted
-                        ) {
-                            Button("Allow Input Monitoring…") { readiness.requestInputMonitoring() }
-                        }
-
-                        Divider()
-                            .padding(.vertical, 12)
-
-                        Text("macOS will open System Settings. Turn on ReasonDeck, then return here. Permissions are checked again automatically.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-            } else {
-                Section("Install ReasonDeck") {
-                    installationGuidance
-                }
-            }
+            readinessSection
 
             if store.isValid {
-                if store.entries.isEmpty {
-                    ContentUnavailableView {
-                        Label("No Shortcuts", systemImage: "keyboard")
-                    } description: {
-                        Text("Add a shortcut, then choose its keyboard command, model, and reasoning effort.")
-                    } actions: {
-                        addShortcutButton
+                Picker("Shortcut type", selection: $selectedTab) {
+                    ForEach(ShortcutSettingsTab.allCases) { tab in
+                        Text(tab.displayName).tag(tab)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 260)
-                } else {
-                    ForEach(store.entries) { entry in
-                        Section {
-                            HStack(spacing: 12) {
-                                LabeledContent("Keyboard shortcut") {
-                                    ShortcutRecorder(shortcut: entry.shortcut) { shortcut in
-                                        do {
-                                            try store.setShortcut(shortcut, for: entry.id)
-                                        } catch let error as ShortcutAssignmentError {
-                                            assignmentError = error.message
-                                        } catch {
-                                            assignmentError = "The shortcut could not be saved."
-                                        }
-                                    }
-                                    .frame(width: 150)
-                                }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
 
-                                Button(role: .destructive) {
-                                    store.deleteEntry(entry.id)
-                                } label: {
-                                    Image(systemName: "trash")
-                                }
-                                .buttonStyle(.borderless)
-                                .help("Delete shortcut")
-                                .accessibilityLabel("Delete shortcut")
-                            }
-
-                            Picker("Model", selection: modelBinding(for: entry.id)) {
-                                ForEach(ChatGPTModel.allCases) { model in
-                                    Text(model.rawValue).tag(model)
-                                }
-                            }
-
-                            Picker("Reasoning", selection: effortBinding(for: entry.id)) {
-                                ForEach(ReasoningEffort.allCases) { effort in
-                                    Text(effort.rawValue).tag(effort)
-                                }
-                            }
-
-                            Text("Use at least Command, Option, or Control. Click the shortcut again to replace it; press Delete while recording to clear it.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    HStack {
-                        Spacer()
-                        addShortcutButton
-                        Spacer()
-                    }
+                switch selectedTab {
+                case .modelSwitching:
+                    modelShortcutLibrary
+                case .nextFinishedSession:
+                    finishedSessionLibrary
                 }
             } else {
                 ContentUnavailableView {
@@ -116,8 +42,11 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(minWidth: 520, idealWidth: 560, minHeight: 440, idealHeight: 500)
+        .frame(minWidth: 620, idealWidth: 700, minHeight: 480, idealHeight: 620)
         .navigationTitle("Shortcuts")
+        .task(id: store.isValid) {
+            _ = store.ensureNavigationEntry()
+        }
         .alert("Shortcut Unavailable", isPresented: Binding(
             get: { assignmentError != nil },
             set: { if !$0 { assignmentError = nil } }
@@ -133,6 +62,352 @@ struct SettingsView: View {
             Button("OK") { readiness.clearInstallationError() }
         } message: {
             Text(readiness.installationError ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private var readinessSection: some View {
+        if readiness.installLocation == .installed {
+            Section {
+                if permissionsAreReady {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                        Text("ReasonDeck is ready")
+
+                        Spacer(minLength: 12)
+
+                        Button(showsPermissionDetails ? "Hide Permissions" : "Manage Permissions…") {
+                            showsPermissionDetails.toggle()
+                        }
+                    }
+
+                    if showsPermissionDetails {
+                        Divider()
+                        permissionDetails
+                    }
+                } else {
+                    permissionDetails
+                }
+            }
+        } else {
+            Section("Install ReasonDeck") {
+                installationGuidance
+            }
+        }
+    }
+
+    private var permissionsAreReady: Bool {
+        readiness.snapshot.accessibilityGranted && readiness.snapshot.inputMonitoringGranted
+    }
+
+    private var permissionDetails: some View {
+        VStack(spacing: 0) {
+            permissionRow(
+                title: "Accessibility",
+                isGranted: readiness.snapshot.accessibilityGranted
+            ) {
+                Button("Allow Accessibility…") { readiness.requestAccessibility() }
+            }
+
+            Divider()
+                .padding(.vertical, 12)
+
+            permissionRow(
+                title: "Input Monitoring",
+                isGranted: readiness.snapshot.inputMonitoringGranted
+            ) {
+                Button("Allow Input Monitoring…") { readiness.requestInputMonitoring() }
+            }
+
+            Divider()
+                .padding(.vertical, 12)
+
+            Text("macOS will open System Settings. Turn on ReasonDeck, then return here. Permissions are checked again automatically.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    @ViewBuilder
+    private var modelShortcutLibrary: some View {
+        if store.modelEntries.isEmpty {
+            ContentUnavailableView {
+                Label("No Model Shortcuts", systemImage: "keyboard")
+            } description: {
+                Text("Add a shortcut, then choose what it should select in each app.")
+            } actions: {
+                addShortcutButton
+            }
+            .frame(maxWidth: .infinity, minHeight: 240)
+        } else {
+            ForEach(store.modelEntries) { entry in
+                modelShortcutSection(entry)
+            }
+
+            Section {
+                HStack {
+                    addShortcutButton
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var finishedSessionLibrary: some View {
+        if let entry = store.navigationEntries.first {
+            Section {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 12) {
+                        Label("Next finished session", systemImage: "checkmark.message")
+                            .font(.headline)
+
+                        Spacer(minLength: 12)
+
+                        shortcutRecorder(for: entry)
+                            .frame(width: 132)
+                    }
+
+                    Text("Open the next finished session waiting for a reply.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+
+                    if !RuntimeCapabilities.supportsCursorNavigation() {
+                        Label("Not available in this build", systemImage: "exclamationmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        } else {
+            ProgressView()
+                .frame(maxWidth: .infinity, minHeight: 120)
+        }
+    }
+
+    private func modelShortcutSection(_ entry: ShortcutEntry) -> some View {
+        Section {
+            VStack(alignment: .leading, spacing: 0) {
+                shortcutHeader(entry)
+                    .padding(.bottom, 12)
+                Divider()
+
+                if expandedEntryIDs.contains(entry.id) {
+                    modelTargetEditor(entry)
+                        .padding(.vertical, 12)
+
+                    Divider()
+
+                    Text("Runs only when an enabled app is frontmost. Use Command, Option, or Control in every shortcut.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 10)
+                } else {
+                    shortcutSummary(entry)
+                        .padding(.top, 12)
+                }
+            }
+        }
+    }
+
+    private func shortcutHeader(_ entry: ShortcutEntry) -> some View {
+        HStack(spacing: 12) {
+            shortcutRecorder(for: entry)
+                .frame(width: 132)
+
+            Spacer(minLength: 12)
+
+            if expandedEntryIDs.contains(entry.id) {
+                Button(role: .destructive) {
+                    expandedEntryIDs.remove(entry.id)
+                    store.deleteEntry(entry.id)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(.borderless)
+                .help("Delete \(entry.shortcut?.displayName ?? "unassigned") shortcut")
+                .accessibilityLabel("Delete \(entry.shortcut?.displayName ?? "unassigned") shortcut")
+            }
+
+            Button {
+                toggleExpansion(of: entry.id)
+            } label: {
+                Image(systemName: expandedEntryIDs.contains(entry.id) ? "chevron.up" : "chevron.down")
+                    .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .help(expandedEntryIDs.contains(entry.id) ? "Hide shortcut details" : "Edit shortcut details")
+            .accessibilityLabel(expandedEntryIDs.contains(entry.id) ? "Hide shortcut details" : "Edit shortcut details")
+        }
+    }
+
+    private func shortcutRecorder(for entry: ShortcutEntry) -> some View {
+        ShortcutRecorder(
+            shortcut: entry.shortcut,
+            beginRecording: beginShortcutRecording,
+            cancelRecording: cancelShortcutRecording,
+            onRecordingUnavailable: {
+                assignmentError = "Enable Input Monitoring before recording a shortcut."
+            }
+        ) { shortcut in
+            do {
+                try store.setShortcut(shortcut, for: entry.id)
+            } catch let error as ShortcutAssignmentError {
+                assignmentError = error.message
+            } catch {
+                assignmentError = "The shortcut could not be saved."
+            }
+        }
+    }
+
+    private func shortcutSummary(_ entry: ShortcutEntry) -> some View {
+        VStack(spacing: 10) {
+            ForEach(ApplicationTarget.allCases.filter(entry.enabledTargets.contains)) { target in
+                HStack(spacing: 16) {
+                    Label(target.displayName, systemImage: target.systemImage)
+
+                    Spacer(minLength: 16)
+
+                    Text(summaryValue(for: target, in: entry))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+        }
+    }
+
+    private func modelTargetEditor(_ entry: ShortcutEntry) -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+            GridRow {
+                Text("Application")
+                Text("Enabled")
+                Text("Model")
+                Text("Effort")
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Divider()
+                .gridCellColumns(4)
+
+            ForEach(ApplicationTarget.allCases) { target in
+                GridRow {
+                    Label(target.displayName, systemImage: target.systemImage)
+                        .frame(minWidth: 120, alignment: .leading)
+
+                    Toggle(
+                        "Enable \(target.displayName)",
+                        isOn: targetBinding(target, for: entry.id)
+                    )
+                    .labelsHidden()
+                    .disabled(!RuntimeCapabilities.supports(target))
+
+                    if !RuntimeCapabilities.supports(target) {
+                        Text("Unavailable")
+                            .foregroundStyle(.secondary)
+                            .gridCellColumns(2)
+                    } else if entry.enabledTargets.contains(target) {
+                        modelPicker(for: target, entryID: entry.id)
+                        effortPicker(for: target, entryID: entry.id)
+                    } else {
+                        Text("—")
+                            .foregroundStyle(.tertiary)
+                        Text("—")
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func modelPicker(for target: ApplicationTarget, entryID: UUID) -> some View {
+        switch target {
+        case .chatGPT:
+            Picker("ChatGPT model", selection: chatGPTModelBinding(for: entryID)) {
+                ForEach(ChatGPTModel.allCases) { model in Text(model.rawValue).tag(model) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 130)
+        case .claudeCode:
+            Picker("Claude Code model", selection: claudeCodeModelBinding(for: entryID)) {
+                ForEach(ClaudeCodeModel.allCases) { model in Text(model.rawValue).tag(model) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 130)
+        case .cursor:
+            Picker("Cursor model", selection: cursorModelBinding(for: entryID)) {
+                ForEach(CursorModel.allCases) { model in Text(model.rawValue).tag(model) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 130)
+        case .antigravity:
+            Picker("Antigravity model", selection: antigravityModelBinding(for: entryID)) {
+                ForEach(AntigravityModel.allCases) { model in Text(model.rawValue).tag(model) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 130)
+        }
+    }
+
+    @ViewBuilder
+    private func effortPicker(for target: ApplicationTarget, entryID: UUID) -> some View {
+        switch target {
+        case .chatGPT:
+            Picker("ChatGPT reasoning", selection: chatGPTEffortBinding(for: entryID)) {
+                ForEach(ChatGPTReasoningEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 110)
+        case .claudeCode:
+            Picker("Claude Code effort", selection: claudeCodeEffortBinding(for: entryID)) {
+                ForEach(ClaudeCodeEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 110)
+        case .cursor:
+            Picker("Cursor effort", selection: cursorEffortBinding(for: entryID)) {
+                ForEach(CursorEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 110)
+        case .antigravity:
+            Picker("Antigravity effort", selection: antigravityEffortBinding(for: entryID)) {
+                ForEach(AntigravityEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+            }
+            .labelsHidden()
+            .frame(minWidth: 110)
+        }
+    }
+
+    private func summaryValue(for target: ApplicationTarget, in entry: ShortcutEntry) -> String {
+        guard RuntimeCapabilities.supports(target) else { return "Unavailable" }
+
+        switch target {
+        case .chatGPT:
+            guard let selection = entry.chatGPT else { return "Off" }
+            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
+        case .claudeCode:
+            guard let selection = entry.claudeCode else { return "Off" }
+            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
+        case .cursor:
+            if entry.cursorNavigation != nil { return "Next finished session" }
+            guard let selection = entry.cursor else { return "Off" }
+            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
+        case .antigravity:
+            guard let selection = entry.antigravity else { return "Off" }
+            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
+        }
+    }
+
+    private func toggleExpansion(of id: UUID) {
+        if expandedEntryIDs.contains(id) {
+            expandedEntryIDs.remove(id)
+        } else {
+            expandedEntryIDs.insert(id)
         }
     }
 
@@ -176,7 +451,9 @@ struct SettingsView: View {
 
     private var addShortcutButton: some View {
         Button {
-            store.addEntry()
+            if let id = store.addEntry() {
+                expandedEntryIDs.insert(id)
+            }
         } label: {
             Label("Add Shortcut", systemImage: "plus")
         }
@@ -211,39 +488,123 @@ struct SettingsView: View {
         }
     }
 
-    private func modelBinding(for id: UUID) -> Binding<ChatGPTModel> {
+    private func targetBinding(_ target: ApplicationTarget, for id: UUID) -> Binding<Bool> {
         Binding(
-            get: { store.entry(id: id)?.selection.model ?? .sol56 },
-            set: { store.setModel($0, for: id) }
+            get: { store.entry(id: id)?.enabledTargets.contains(target) ?? false },
+            set: { isEnabled in
+                do {
+                    try store.setTarget(target, enabled: isEnabled, for: id)
+                } catch let error as ShortcutAssignmentError {
+                    assignmentError = error.message
+                } catch {
+                    assignmentError = "The target could not be updated."
+                }
+            }
         )
     }
 
-    private func effortBinding(for id: UUID) -> Binding<ReasoningEffort> {
+    private func chatGPTModelBinding(for id: UUID) -> Binding<ChatGPTModel> {
         Binding(
-            get: { store.entry(id: id)?.selection.effort ?? .extraHigh },
-            set: { store.setEffort($0, for: id) }
+            get: { store.entry(id: id)?.chatGPT?.model ?? .sol56 },
+            set: { store.setChatGPTModel($0, for: id) }
         )
+    }
+
+    private func chatGPTEffortBinding(for id: UUID) -> Binding<ChatGPTReasoningEffort> {
+        Binding(
+            get: { store.entry(id: id)?.chatGPT?.effort ?? .extraHigh },
+            set: { store.setChatGPTEffort($0, for: id) }
+        )
+    }
+
+    private func claudeCodeModelBinding(for id: UUID) -> Binding<ClaudeCodeModel> {
+        Binding(
+            get: { store.entry(id: id)?.claudeCode?.model ?? .opus5 },
+            set: { store.setClaudeCodeModel($0, for: id) }
+        )
+    }
+
+    private func claudeCodeEffortBinding(for id: UUID) -> Binding<ClaudeCodeEffort> {
+        Binding(
+            get: { store.entry(id: id)?.claudeCode?.effort ?? .high },
+            set: { store.setClaudeCodeEffort($0, for: id) }
+        )
+    }
+
+    private func cursorModelBinding(for id: UUID) -> Binding<CursorModel> {
+        Binding(
+            get: { store.entry(id: id)?.cursor?.model ?? .automatic },
+            set: { store.setCursorModel($0, for: id) }
+        )
+    }
+
+    private func cursorEffortBinding(for id: UUID) -> Binding<CursorEffort> {
+        Binding(
+            get: { store.entry(id: id)?.cursor?.effort ?? .high },
+            set: { store.setCursorEffort($0, for: id) }
+        )
+    }
+
+    private func antigravityModelBinding(for id: UUID) -> Binding<AntigravityModel> {
+        Binding(
+            get: { store.entry(id: id)?.antigravity?.model ?? .gemini31Pro },
+            set: { store.setAntigravityModel($0, for: id) }
+        )
+    }
+
+    private func antigravityEffortBinding(for id: UUID) -> Binding<AntigravityEffort> {
+        Binding(
+            get: { store.entry(id: id)?.antigravity?.effort ?? .medium },
+            set: { store.setAntigravityEffort($0, for: id) }
+        )
+    }
+}
+
+private enum ShortcutSettingsTab: String, CaseIterable, Identifiable {
+    case modelSwitching
+    case nextFinishedSession
+
+    var id: Self { self }
+
+    var displayName: String {
+        switch self {
+        case .modelSwitching: "Model switching"
+        case .nextFinishedSession: "Next finished session"
+        }
     }
 }
 
 private struct ShortcutRecorder: NSViewRepresentable {
     let shortcut: KeyboardShortcut?
+    let beginRecording: (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool
+    let cancelRecording: () -> Void
+    let onRecordingUnavailable: () -> Void
     let onChange: (KeyboardShortcut?) -> Void
 
     func makeNSView(context: Context) -> ShortcutRecorderButton {
         let button = ShortcutRecorderButton()
+        button.startRecording = beginRecording
+        button.cancelRecording = cancelRecording
+        button.onRecordingUnavailable = onRecordingUnavailable
         button.onChange = onChange
         button.shortcut = shortcut
         return button
     }
 
     func updateNSView(_ button: ShortcutRecorderButton, context: Context) {
+        button.startRecording = beginRecording
+        button.cancelRecording = cancelRecording
+        button.onRecordingUnavailable = onRecordingUnavailable
         button.onChange = onChange
         button.shortcut = shortcut
     }
 }
 
+@MainActor
 private final class ShortcutRecorderButton: NSButton {
+    var startRecording: ((@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool)?
+    var cancelRecording: (() -> Void)?
+    var onRecordingUnavailable: (() -> Void)?
     var onChange: ((KeyboardShortcut?) -> Void)?
     var shortcut: KeyboardShortcut? { didSet { refreshTitle() } }
     private var isRecording = false { didSet { refreshTitle() } }
@@ -263,74 +624,33 @@ private final class ShortcutRecorderButton: NSButton {
     @objc private func beginRecording() {
         isRecording = true
         window?.makeFirstResponder(self)
+        guard startRecording?({ [weak self] result in self?.capture(result) }) == true else {
+            isRecording = false
+            onRecordingUnavailable?()
+            return
+        }
     }
 
     override func resignFirstResponder() -> Bool {
+        if isRecording { cancelRecording?() }
         isRecording = false
         return super.resignFirstResponder()
     }
 
-    override func keyDown(with event: NSEvent) {
-        guard isRecording else {
-            super.keyDown(with: event)
-            return
-        }
-        capture(event)
-    }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard isRecording, event.type == .keyDown else {
-            return super.performKeyEquivalent(with: event)
-        }
-        capture(event)
-        return true
-    }
-
-    private func capture(_ event: NSEvent) {
-        let modifiers = ShortcutModifiers(appKitFlags: event.modifierFlags)
-        if event.keyCode == 53, modifiers.isEmpty {
-            window?.makeFirstResponder(nil)
-            return
-        }
-        if event.keyCode == 51, modifiers.isEmpty {
-            onChange?(nil)
-            window?.makeFirstResponder(nil)
-            return
-        }
-        guard let label = Self.keyLabel(for: event),
-              let shortcut = try? KeyboardShortcut(
-                keyCode: event.keyCode,
-                keyLabel: label,
-                modifiers: modifiers
-              ) else {
+    private func capture(_ result: ShortcutRecordingResult) {
+        switch result {
+        case .captured(let shortcut): onChange?(shortcut)
+        case .cleared: onChange?(nil)
+        case .cancelled: break
+        case .rejected:
             NSSound.beep()
             return
         }
-        onChange?(shortcut)
         window?.makeFirstResponder(nil)
     }
 
     private func refreshTitle() {
         title = isRecording ? "Type shortcut…" : (shortcut?.displayName ?? "Set Shortcut")
         setAccessibilityValue(shortcut?.displayName ?? "Not set")
-    }
-
-    private static func keyLabel(for event: NSEvent) -> String? {
-        KeyboardKeyLabel.label(
-            for: event.keyCode,
-            fallback: event.characters(byApplyingModifiers: [])
-        )
-    }
-}
-
-private extension ShortcutModifiers {
-    init(appKitFlags: NSEvent.ModifierFlags) {
-        let flags = appKitFlags.intersection(.deviceIndependentFlagsMask)
-        var value: ShortcutModifiers = []
-        if flags.contains(.command) { value.insert(.command) }
-        if flags.contains(.option) { value.insert(.option) }
-        if flags.contains(.control) { value.insert(.control) }
-        if flags.contains(.shift) { value.insert(.shift) }
-        self = value
     }
 }

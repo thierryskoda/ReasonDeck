@@ -2,6 +2,8 @@
 build/
 DerivedData/
 dist/
+.DS_Store
+.impeccable/
 *.xcarchive/
 *.dmg
 *.p12

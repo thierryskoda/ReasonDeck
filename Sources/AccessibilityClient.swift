@@ -1,50 +1,107 @@
 import Foundation
 
-protocol AccessibilityClient: Sendable {
-    func currentPickerTitle() async throws -> String
-    func selectModel(_ model: ChatGPTModel) async throws -> String
-    func selectEffort(_ effort: ReasoningEffort) async throws -> String
+enum ChatGPTApplyOutcome: Equatable, Sendable {
+    case applied(model: ChatGPTModel, effort: ChatGPTReasoningEffort, observedTitle: String)
+    case alreadyApplied(observedTitle: String)
+    case partial(model: ChatGPTModel, observedTitle: String, failure: SwitchFailure)
+    case failure(SwitchFailure)
 }
 
-actor ProfileSwitchCoordinator {
-    private let client: any AccessibilityClient
-    private(set) var isSwitching = false
+/// ChatGPT has one atomic operation.  The caller cannot retain an AX element,
+/// cache a picker, or interleave the model and effort phases.
+protocol ChatGPTUIClient: Sendable {
+    func apply(_ selection: ChatGPTSelection, invocation: HotkeyInvocation) async -> ChatGPTApplyOutcome
+}
 
-    init(client: any AccessibilityClient) { self.client = client }
+/// The live Accessibility adapter owns these operations. Keeping transaction
+/// orchestration separate makes the number and order of visible picker
+/// interactions deterministic and testable.
+protocol ChatGPTPickerTransport: Sendable {
+    func observeSelectionTitle(invocation: HotkeyInvocation) async throws -> String
+    func selectModel(_ model: ChatGPTModel, invocation: HotkeyInvocation) async throws -> String
+    func selectEffort(_ effort: ChatGPTReasoningEffort, invocation: HotkeyInvocation) async throws -> String
+    func restoreComposerFocus(invocation: HotkeyInvocation) async -> Bool
+}
 
-    func apply(_ profile: ProfileSelection) async -> ProfileSwitchResult {
-        guard !isSwitching else { return .failure(profile: profile, failure: .accessibility("Another switch is already running.")) }
-        isSwitching = true
-        defer { isSwitching = false }
+enum ChatGPTTransaction {
+    static func apply(
+        _ selection: ChatGPTSelection,
+        invocation: HotkeyInvocation,
+        using transport: any ChatGPTPickerTransport
+    ) async -> ChatGPTApplyOutcome {
+        let outcome = await applySelection(selection, invocation: invocation, using: transport)
+        _ = await transport.restoreComposerFocus(invocation: invocation)
+        return outcome
+    }
+
+    private static func applySelection(
+        _ selection: ChatGPTSelection,
+        invocation: HotkeyInvocation,
+        using transport: any ChatGPTPickerTransport
+    ) async -> ChatGPTApplyOutcome {
+        do {
+            let initial = try await transport.observeSelectionTitle(invocation: invocation)
+            if selection.matches(title: initial) { return .alreadyApplied(observedTitle: initial) }
+
+            let afterModel: String
+            if !selection.title(initial, containsModel: selection.model) {
+                afterModel = try await transport.selectModel(selection.model, invocation: invocation)
+                guard selection.title(afterModel, containsModel: selection.model) else {
+                    return .failure(.verificationMismatch(expected: selection.model.rawValue, observed: afterModel))
+                }
+            } else {
+                afterModel = initial
+            }
+
+            guard selection.title(afterModel, containsModel: selection.model) else {
+                return .failure(.verificationMismatch(expected: selection.model.rawValue, observed: afterModel))
+            }
+            if selection.title(afterModel, containsEffort: selection.effort) {
+                return selection.matches(title: afterModel)
+                    ? .applied(model: selection.model, effort: selection.effort, observedTitle: afterModel)
+                    : .failure(.verificationMismatch(expected: selection.expectedTitle, observed: afterModel))
+            }
+
+            do {
+                let final = try await transport.selectEffort(selection.effort, invocation: invocation)
+                guard selection.matches(title: final) else {
+                    return .partial(
+                        model: selection.model,
+                        observedTitle: afterModel,
+                        failure: .verificationMismatch(expected: selection.expectedTitle, observed: final)
+                    )
+                }
+                return .applied(model: selection.model, effort: selection.effort, observedTitle: final)
+            } catch let failure as SwitchFailure {
+                return .partial(model: selection.model, observedTitle: afterModel, failure: failure)
+            }
+        } catch let failure as SwitchFailure {
+            return .failure(failure)
+        } catch {
+            return .failure(.accessibility(String(describing: error)))
+        }
+    }
+}
+
+actor ChatGPTSwitchCoordinator: ChatGPTApplying {
+    private let client: any ChatGPTUIClient
+
+    init(client: any ChatGPTUIClient = SystemAccessibilityClient()) {
+        self.client = client
+    }
+
+    func apply(_ selection: ChatGPTSelection, invocation: HotkeyInvocation) async -> ProfileSwitchResult {
         let clock = ContinuousClock()
         let start = clock.now
-        do {
-            var title = try await client.currentPickerTitle()
-            if profile.matches(title: title) {
-                return .success(profile: profile, observedTitle: title, elapsed: start.duration(to: clock.now))
-            }
-            if !profile.title(title, containsModel: profile.model) {
-                title = try await client.selectModel(profile.model)
-                guard profile.title(title, containsModel: profile.model) else {
-                    throw SwitchFailure.verificationMismatch(expected: profile.model.rawValue, observed: title)
-                }
-            }
-            if !profile.title(title, containsEffort: profile.effort) {
-                do {
-                    title = try await client.selectEffort(profile.effort)
-                } catch let failure as SwitchFailure {
-                    title = (try? await client.currentPickerTitle()) ?? title
-                    return .partialFailure(profile: profile, observedTitle: title, failure: failure)
-                }
-            }
-            guard profile.matches(title: title) else {
-                return .partialFailure(profile: profile, observedTitle: title, failure: .verificationMismatch(expected: profile.expectedTitle, observed: title))
-            }
-            return .success(profile: profile, observedTitle: title, elapsed: start.duration(to: clock.now))
-        } catch let failure as SwitchFailure {
-            return .failure(profile: profile, failure: failure)
-        } catch {
-            return .failure(profile: profile, failure: .accessibility(String(describing: error)))
+        switch await client.apply(selection, invocation: invocation) {
+        case .applied(_, _, let title):
+            return .success(profile: .chatGPT(selection), observedTitle: title, elapsed: start.duration(to: clock.now))
+        case .alreadyApplied(let title):
+            return .alreadyApplied(profile: .chatGPT(selection), observedTitle: title)
+        case .partial(_, let title, let failure):
+            return .partialFailure(profile: .chatGPT(selection), observedTitle: title, failure: failure)
+        case .failure(let failure):
+            return .failure(profile: .chatGPT(selection), failure: failure)
         }
     }
 }

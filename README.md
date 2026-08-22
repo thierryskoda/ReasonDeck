@@ -1,158 +1,123 @@
 # ReasonDeck
 
-ReasonDeck is a small macOS menu-bar app for switching the active ChatGPT conversation with keyboard shortcuts you choose.
+ReasonDeck is a small macOS menu-bar app for switching model and reasoning settings in ChatGPT and Cursor with keyboard shortcuts you choose.
 
-It is local-only, starts with no shortcuts, and is unofficial. It is not affiliated with or endorsed by OpenAI.
+It is local-only, starts with no shortcuts, and is unofficial. It is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, or Google.
 
-![Profile settings](docs/settings.png)
+![ReasonDeck settings](docs/settings.png)
 
-## Download for Mac
+## Download
 
-### [⬇ Download ReasonDeck 0.1.0 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.1.0/ReasonDeck-0.1.0.dmg)
+### [Download ReasonDeck 0.1.0 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.1.0/ReasonDeck-0.1.0.dmg)
 
-Universal app for Apple silicon and Intel · macOS 14 or later
+Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.1.0)
 
-[View release notes and SHA-256 checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.1.0)
-
-If the release page does not contain a signed DMG and `SHA256SUMS`, the binary release is not ready yet. Do not download repackaged copies from another source.
+Version 0.1.0 is a prerelease and supports ChatGPT. The current source is ahead of that build and also contains newer Cursor work.
 
 ### Install
 
-1. Open the downloaded DMG.
-2. Drag **ReasonDeck** to **Applications**.
-3. Open the app from Applications. It appears in the menu bar instead of the Dock.
-4. In the Settings window, choose **Allow Accessibility** and **Allow Input Monitoring**, then enable ReasonDeck in the System Settings pane that opens.
-5. Choose **Add Shortcut**, record a keyboard command, then select its model and reasoning effort.
+1. Open the DMG and drag **ReasonDeck** to **Applications**.
+2. Open ReasonDeck from Applications. It appears in the menu bar instead of the Dock.
+3. In Settings, choose **Allow Accessibility** and **Allow Input Monitoring**, then enable ReasonDeck in the System Settings panes that open.
+4. Add a shortcut and choose its model and reasoning effort.
 
-Official binary releases must be signed with Developer ID and notarized by Apple. Never install a release that requires a Gatekeeper bypass or a terminal command.
+Official binaries are signed with Developer ID and notarized by Apple. Do not install a copy that requires a Gatekeeper bypass or a terminal command.
 
-### Homebrew
+## What it does
 
-The custom Homebrew Cask will install the same notarized DMG published on GitHub. After the v0.1 Cask is available:
+- Creates any number of model-and-effort shortcuts.
+- Runs a shortcut only when its supported app is frontmost.
+- Passes the same keys through normally in every other app.
+- Rejects shortcuts without Command, Option, or Control and prevents duplicates.
+- Reports unavailable choices instead of guessing or silently substituting another model.
 
-```sh
-brew install --cask thierryskoda/tap/reasondeck
-```
+The current source also includes Cursor's **Next finished session** shortcut. Claude Code switching remains gated until its signed live Accessibility checks pass. Neither change is part of the downloadable 0.1.0 build.
 
-Direct download remains the primary installation path.
+Other adapter code in the development branch is experimental unless a release note explicitly includes it.
 
-## Requirements
+ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
+
+ChatGPT efforts currently recognized by source: Extra High, Medium, None, Light, Ultra, High, and Max.
+
+## Requirements and compatibility
 
 - macOS 14 or later
 - The English ChatGPT Mac app (`com.openai.codex`)
-- Accessibility permission to find and select the active composer controls
-- Input Monitoring permission for app-scoped keyboard shortcuts
+- The English Cursor Mac app (`com.todesktop.230313mzl4w4u92`) when building the current source
+- Accessibility and Input Monitoring permission
 
-The current compatibility baseline is ChatGPT Mac `26.727.51351`, using a normal conversation with the composer visible. Preview and sidebar layouts are not supported.
+ChatGPT support expects a normal conversation with the composer visible and the native **Select model** command (`⌃⇧M`) available. Preview, sidebar, and task layouts are not supported targets.
 
-## Use shortcuts
+Cursor support expects an idle Agent or Chat composer with its model chip visible. The current development baseline covers Cursor 3.15.6 and 3.16.29 on macOS 26.5.1. Cursor's server-driven model list can change, so ReasonDeck accepts only exact labels it knows and fails closed on anything else.
 
-The app starts with no shortcuts. Open **Settings**, choose **Add Shortcut**, click **Set Shortcut**, and type the keyboard combination you want. Then choose its model and reasoning effort.
-
-You can add as many entries as you need, replace any keyboard command by recording it again, or remove an entry with its trash button. Every shortcut must include Command, Option, or Control. Duplicate combinations are rejected.
-
-Shortcuts run only when ChatGPT is frontmost. In every other app, the same keys pass through unchanged. ChatGPT may not offer every model-and-effort combination in every account or conversation. If the model succeeds but the effort is unavailable, the app reports a partial result and does not guess or roll the model back.
-
-Supported models: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
-
-Supported efforts: Extra High, Medium, Light, Ultra, High, and Max.
-
-## Why permissions are required
-
-- **Accessibility** lets the app find the model and reasoning controls in the active ChatGPT window, select them, and verify the final title.
-- **Input Monitoring** lets the app receive your configured keyboard shortcuts. Ordinary keys are not valid shortcuts, and unrelated apps keep receiving their keys.
-
-ReasonDeck requests each permission and opens the matching macOS pane. Turn on ReasonDeck, then return to the app; it checks both permissions again and restarts its hotkey listener automatically. macOS requires this final approval and does not allow apps to enable their own privacy switches.
-
-Privacy permissions attach to a specific installed app. If ReasonDeck is opened from Downloads or an Xcode build folder, Settings first offers to copy that signed app bundle to `/Applications` and relaunch it. It never overwrites an existing installation. Ordinary users should not need to press the `+` button in System Settings or browse for a build artifact manually.
+Compilation and unit tests are not compatibility proof. Each supported app version needs a signed live check before it is claimed for a release.
 
 ## Privacy and safety
 
-The app has no network implementation. It does not request ChatGPT account credentials and does not collect, store, log, or transmit chat content. It stores only shortcut, model, and reasoning preferences in macOS `UserDefaults`.
+- No network implementation, analytics, or account credentials.
+- No collection, storage, logging, or transmission of chat or editor content.
+- Shortcuts capture the frontmost supported process, then verify its focused window before switching.
+- ChatGPT and Cursor recheck that target before actions and verify the final selection.
+- Model and effort labels are closed sets in source.
+- No fixed screen coordinates.
 
-The switching path fails closed. It acts only after confirming that ChatGPT is frontmost and the normal composer profile control, expected item, and resulting title can be verified. It prefers Accessibility actions. When Chromium exposes only a framed control, it can use a validated composer-relative pointer click and immediately restore the pointer. It never stores fixed screen coordinates.
+ReasonDeck stores only shortcut, model, and reasoning preferences in macOS `UserDefaults`. Accessibility is used to find and verify the active app's controls; Input Monitoring is used for the shortcuts you configure.
 
-Model is applied before effort because selecting a model closes and rebuilds ChatGPT's menu. Already-selected phases are skipped. See [ADR-001](ADR-001-accessibility-automation.md) for the safety rationale.
-
-## Verify a switch
-
-1. Open an idle, normal-layout ChatGPT conversation with the composer visible.
-2. Choose a configured entry from the helper menu and confirm the composer title matches both values.
-3. Repeat with its recorded keyboard shortcut.
-4. Bring another app frontmost and confirm the same key combination passes through unchanged.
-
-Two visible menu interactions are expected when both values change. A brief pointer movement can appear during the validated geometry fallback.
-
-## Update
-
-Download the newer DMG and replace the app in Applications. Keep the bundle identifier and Developer ID identity stable across versions so macOS can associate the app with the same installation. Saved shortcuts are stored outside the app bundle and should remain available after replacement.
-
-Homebrew users can update with:
-
-```sh
-brew update
-brew upgrade --cask reasondeck
-```
+The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), and [ADR-004](ADR-004-cursor-unread-navigation.md).
 
 ## Troubleshooting
 
-- **Profile actions are disabled:** Open Settings and choose the **Allow** action beside the permission marked Required. Enable the installed ReasonDeck app in the macOS pane that opens.
-- **ReasonDeck is absent from a privacy list:** Confirm that you opened `/Applications/ReasonDeck.app`, choose the matching **Allow** action again, and return to ReasonDeck. Manual `+` registration is a developer recovery step, not normal onboarding.
-- **Hotkeys do not respond:** Grant Input Monitoring and return to ReasonDeck. The app retries its hotkey listener automatically; relaunch once if macOS requests it.
-- **Only the model changes:** The requested effort was unavailable or could not be verified. The status explains the partial result.
-- **A shortcut will not record:** Include Command, Option, or Control. Escape cancels recording; unmodified Delete clears the current combination.
-- **A shortcut is rejected:** Another entry already uses the same combination.
-- **Saved shortcuts need reset:** Open Settings and choose **Reset to Empty**.
-- **A ChatGPT update breaks switching:** Treat that UI as incompatible until its Accessibility structure is revalidated. Do not replace targeting with fixed coordinates.
+- **Permissions are required:** Use the matching **Allow** action in ReasonDeck Settings, enable the installed app in System Settings, then return to ReasonDeck.
+- **Hotkeys do not respond:** Confirm Input Monitoring is enabled. ReasonDeck retries its listener when the app becomes active again; relaunch once if macOS asks.
+- **Only the model changes:** The requested effort was unavailable or could not be verified. ReasonDeck reports a partial result instead of rolling the model back.
+- **A shortcut will not save:** Include Command, Option, or Control. Escape cancels recording, unmodified Delete clears it, and duplicate combinations are rejected.
+- **Cursor's model control is unavailable:** Open the Agents sidebar and leave an idle Agent or Chat composer visible.
+- **A model is unavailable:** The account or app no longer exposes the exact saved label. ReasonDeck does not substitute a similar model.
+- **Saved shortcuts are invalid:** Open Settings and choose **Reset to Empty**. Invalid persisted configuration stays disabled until you explicitly reset it.
+
+## Build from source
+
+Building requires Xcode with the macOS SDK.
+
+```sh
+git clone https://github.com/thierryskoda/ReasonDeck.git
+cd ReasonDeck
+cp Config/Local.xcconfig.example Config/Local.xcconfig
+```
+
+Set `DEVELOPMENT_TEAM` in `Config/Local.xcconfig`, then run:
+
+```sh
+swift test
+xcodebuild \
+  -project ReasonDeck.xcodeproj \
+  -scheme ReasonDeck \
+  -configuration Release \
+  -derivedDataPath build \
+  build
+open build/Build/Products/Release/ReasonDeck.app
+```
+
+Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity.
+
+CI runs the tests and an unsigned universal Release build. It has no Apple credentials and cannot publish the app.
+
+## Contributing
+
+Small, focused improvements are welcome. Please open an issue before a large behavior or architecture change.
+
+Run `swift test` before submitting code. Changes to Accessibility targeting, click or key delivery, phase ordering, permissions, signing, or supported model labels also need a signed Release build and a live check in an idle, normal-layout target session. The ADRs above explain the fail-closed constraints that contributions must preserve.
+
+Maintainers can find the release checklist in [docs/RELEASING.md](docs/RELEASING.md).
 
 ## Uninstall
 
-Quit ReasonDeck and move it from Applications to the Trash. You can also remove it from Accessibility and Input Monitoring in System Settings.
-
-Ordinary uninstall leaves saved shortcuts in place for a later reinstall. To remove those preferences too:
+Quit ReasonDeck and move it from Applications to the Trash. Saved shortcuts remain available for a later reinstall. To remove them too:
 
 ```sh
 defaults delete com.thierryai.ReasonDeck
 ```
 
-Homebrew users can uninstall the app while keeping preferences:
-
-```sh
-brew uninstall --cask reasondeck
-```
-
-Use `brew uninstall --zap --cask reasondeck` only when you also want the Cask's documented app-owned preferences removed.
-
-## Build from source
-
-Building from source requires Xcode with the macOS SDK.
-
-1. Create the ignored local signing file:
-
-   ```sh
-   cp Config/Local.xcconfig.example Config/Local.xcconfig
-   ```
-
-2. Set `DEVELOPMENT_TEAM` to your Apple development team. Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants.
-3. Test and build:
-
-   ```sh
-   swift test
-   xcodebuild \
-     -project ReasonDeck.xcodeproj \
-     -scheme ReasonDeck \
-     -configuration Release \
-     -derivedDataPath build \
-     build
-   open build/Build/Products/Release/ReasonDeck.app
-   ```
-
-The first launch from the build folder offers to install that signed app bundle in `/Applications` and relaunch it. The install action refuses to overwrite an existing copy. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity.
-
-CI runs tests and an unsigned universal Release build. It receives no Apple credentials and cannot publish an app.
-
-Maintainers should follow [the release procedure](docs/RELEASING.md).
-
 ## License
 
-MIT. See [LICENSE](LICENSE).
+[MIT](LICENSE) © 2026 Thierry Skoda

@@ -31,7 +31,7 @@ Follow Apple's current notarization authentication guidance when creating that K
 
 1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Config/Build.xcconfig`.
 2. Move the completed entries in `CHANGELOG.md` from **Unreleased** to the exact version and release date.
-3. Confirm README requirements, tested ChatGPT version, install steps, and known limitations.
+3. Confirm README requirements, tested ChatGPT version, install steps, and known limitations. Do not add Claude Code or Cursor to a release claim until each adapter has its own signed live reliability matrix.
 4. Commit the version preparation. Do not create or move a public tag yet.
 
 Versions use `MAJOR.MINOR.PATCH`. During major version zero, every release note must describe compatibility honestly instead of implying a stable API contract.
@@ -93,7 +93,8 @@ Use a clean macOS user account or another Mac.
 7. Replace the previous same-bundle-ID build and verify saved shortcuts remain.
 8. In an idle normal-layout ChatGPT conversation, verify menu selection and a recorded keyboard shortcut.
 9. Bring another app frontmost and verify the same keys pass through.
-10. Confirm no chat-content logs or unexpected network activity appear.
+10. For every enabled adapter, run its versioned signed live reliability matrix, including context-drift and permission-freshness checks. After any dispatcher or trusted-action change, run an alternating same-binary sequence: ChatGPT profile A → Cursor profile A → ChatGPT profile B → Cursor profile B, and verify each terminal state before continuing. CI and unit tests do not substitute for this gate.
+11. Confirm no chat-content logs or unexpected network activity appear.
 
 Record the macOS version, ChatGPT version, architectures actually tested, signing identity, artifact SHA-256, and any limitation in the GitHub release notes. A universal binary built on Apple silicon is not proof of runtime behavior on Intel hardware.
 

@@ -25,11 +25,108 @@ private func isolatedDefaults() -> UserDefaults {
     let shortcut = try KeyboardShortcut(keyCode: 18, keyLabel: "1", modifiers: [.command, .shift])
 
     try store.setShortcut(shortcut, for: id)
-    store.setModel(.luna56, for: id)
-    store.setEffort(.max, for: id)
+    store.setChatGPTModel(.luna56, for: id)
+    store.setChatGPTEffort(.max, for: id)
 
     let relaunched = ProfileStore(defaults: defaults)
-    #expect(relaunched.entries == [ShortcutEntry(id: id, shortcut: shortcut, selection: ProfileSelection(model: .luna56, effort: .max))])
+    #expect(relaunched.entries == [ShortcutEntry(id: id, shortcut: shortcut, chatGPT: ChatGPTSelection(model: .luna56, effort: .max), claudeCode: nil, cursor: nil)])
+}
+
+@MainActor
+@Test func independentClaudeAssignmentSurvivesRelaunch() throws {
+    let defaults = isolatedDefaults()
+    let store = ProfileStore(defaults: defaults)
+    let id = try #require(store.addEntry())
+    try store.setTarget(.claudeCode, enabled: true, for: id)
+    store.setClaudeCodeModel(.sonnet5, for: id)
+    store.setClaudeCodeEffort(.ultracode, for: id)
+
+    let relaunched = ProfileStore(defaults: defaults)
+    #expect(relaunched.entry(id: id)?.chatGPT == ChatGPTSelection(model: .sol56, effort: .extraHigh))
+    #expect(relaunched.entry(id: id)?.claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .ultracode))
+}
+
+@MainActor
+@Test func legacyConfigurationMigratesOnceToChatGPTOnly() throws {
+    let defaults = isolatedDefaults()
+    let id = UUID()
+    let legacy = LegacyShortcutConfiguration(entries: [
+        LegacyShortcutEntry(
+            id: id,
+            shortcut: nil,
+            selection: LegacyProfileSelection(model: .terra56, effort: .high)
+        )
+    ])
+    defaults.set(try JSONEncoder().encode(legacy), forKey: ProfileStore.legacyStorageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.entry(id: id)?.chatGPT == ChatGPTSelection(model: .terra56, effort: .high))
+    #expect(store.entry(id: id)?.claudeCode == nil)
+    #expect(store.entry(id: id)?.cursor == nil)
+    #expect(defaults.data(forKey: ProfileStore.storageKey) != nil)
+    #expect(defaults.object(forKey: ProfileStore.legacyStorageKey) == nil)
+}
+
+@MainActor
+@Test func independentCursorAssignmentSurvivesRelaunch() throws {
+    let defaults = isolatedDefaults()
+    let store = ProfileStore(defaults: defaults)
+    let id = try #require(store.addEntry())
+    try store.setTarget(.cursor, enabled: true, for: id)
+    store.setCursorModel(.composer25, for: id)
+    store.setCursorEffort(.medium, for: id)
+
+    let relaunched = ProfileStore(defaults: defaults)
+    #expect(relaunched.entry(id: id)?.chatGPT == ChatGPTSelection(model: .sol56, effort: .extraHigh))
+    #expect(relaunched.entry(id: id)?.cursor == CursorSelection(model: .composer25, effort: .medium))
+}
+
+@MainActor
+@Test func rerecordingShortcutPreservesEveryTargetAssignment() throws {
+    let store = ProfileStore(defaults: isolatedDefaults())
+    let id = try #require(store.addEntry())
+    try store.setTarget(.cursor, enabled: true, for: id)
+    try store.setTarget(.antigravity, enabled: true, for: id)
+    let shortcut = try KeyboardShortcut(keyCode: 19, keyLabel: "2", modifiers: [.command])
+
+    try store.setShortcut(shortcut, for: id)
+
+    let entry = try #require(store.entry(id: id))
+    #expect(entry.shortcut == shortcut)
+    #expect(entry.chatGPT != nil)
+    #expect(entry.cursor != nil)
+    #expect(entry.antigravity != nil)
+}
+
+@MainActor
+@Test func invalidCurrentConfigurationNeverFallsBackToLegacy() throws {
+    let defaults = isolatedDefaults()
+    defaults.set(Data("invalid-v2".utf8), forKey: ProfileStore.storageKey)
+    let legacy = LegacyShortcutConfiguration(entries: [
+        LegacyShortcutEntry(
+            id: UUID(),
+            shortcut: nil,
+            selection: LegacyProfileSelection(model: .sol56, effort: .extraHigh)
+        )
+    ])
+    defaults.set(try JSONEncoder().encode(legacy), forKey: ProfileStore.legacyStorageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(!store.isValid)
+    #expect(store.entries.isEmpty)
+}
+
+@MainActor
+@Test func lastApplicationAssignmentCannotBeDisabled() throws {
+    let store = ProfileStore(defaults: isolatedDefaults())
+    let id = try #require(store.addEntry())
+
+    #expect(throws: ShortcutAssignmentError.lastAssignment) {
+        try store.setTarget(.chatGPT, enabled: false, for: id)
+    }
+    #expect(store.entry(id: id)?.enabledTargets == [.chatGPT])
 }
 
 @MainActor
@@ -45,6 +142,25 @@ private func isolatedDefaults() -> UserDefaults {
     }
     #expect(store.entry(id: first)?.shortcut == shortcut)
     #expect(store.entry(id: second)?.shortcut == nil)
+}
+
+@MainActor
+@Test func finishedSessionShortcutIsCreatedOnceAndPersists() throws {
+    let defaults = isolatedDefaults()
+    let store = ProfileStore(defaults: defaults)
+    let id = try #require(store.ensureNavigationEntry())
+    #expect(store.ensureNavigationEntry() == id)
+    let shortcut = try KeyboardShortcut(keyCode: 0, keyLabel: "A", modifiers: [.command, .shift])
+
+    try store.setShortcut(shortcut, for: id)
+
+    let relaunched = ProfileStore(defaults: defaults)
+    #expect(relaunched.ensureNavigationEntry() == id)
+    #expect(relaunched.navigationEntries.count == 1)
+    let entry = try #require(relaunched.entry(id: id))
+    #expect(entry.shortcut == shortcut)
+    #expect(entry.cursorNavigation == .nextUnreadSession)
+    #expect(entry.cursor == nil)
 }
 
 @MainActor
@@ -68,5 +184,27 @@ private func isolatedDefaults() -> UserDefaults {
 
     store.reset()
     #expect(store.isValid)
+    #expect(store.entries.isEmpty)
+}
+
+@MainActor
+@Test func persistedCursorModelAndNavigationConflictDisablesTheStore() throws {
+    let defaults = isolatedDefaults()
+    let payload: [String: Any] = [
+        "version": 2,
+        "configuration": ["entries": [[
+            "id": UUID().uuidString,
+            "shortcut": NSNull(),
+            "chatGPT": NSNull(),
+            "claudeCode": NSNull(),
+            "cursor": ["model": "Grok 4.5", "effort": "High"],
+            "cursorNavigation": "nextUnreadSession"
+        ]]]
+    ]
+    defaults.set(try JSONSerialization.data(withJSONObject: payload), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(!store.isValid)
     #expect(store.entries.isEmpty)
 }
