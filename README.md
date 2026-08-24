@@ -4,6 +4,8 @@ ReasonDeck is a small macOS menu-bar app for switching model and reasoning setti
 
 It is local-only, starts with no shortcuts, and is unofficial. It is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, or Google.
 
+![ReasonDeck switching the reasoning effort in Cursor with keyboard shortcuts](docs/reasondeck-demo.gif)
+
 ![ReasonDeck settings](docs/settings.png)
 
 ## Download
