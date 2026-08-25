@@ -3,7 +3,7 @@ import Testing
 @testable import ReasonDeck
 
 @MainActor
-private func isolatedDefaults() -> UserDefaults {
+private func unconfiguredDefaults() -> UserDefaults {
     let suite = "ProfileStoreTests.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suite)!
     defaults.removePersistentDomain(forName: suite)
@@ -11,10 +11,57 @@ private func isolatedDefaults() -> UserDefaults {
 }
 
 @MainActor
-@Test func missingConfigurationStartsWithNoShortcuts() {
-    let store = ProfileStore(defaults: isolatedDefaults())
-    #expect(store.entries.isEmpty)
+private func isolatedDefaults() -> UserDefaults {
+    let defaults = unconfiguredDefaults()
+    ProfileStore(defaults: defaults).reset()
+    return defaults
+}
+
+@MainActor
+@Test func missingConfigurationStartsWithDefaultShortcutsAndPersistsThem() throws {
+    let defaults = unconfiguredDefaults()
+    let store = ProfileStore(defaults: defaults)
+
     #expect(store.isValid)
+    #expect(store.entries.count == 2)
+
+    let economicalShortcut = try KeyboardShortcut(
+        keyCode: 18,
+        keyLabel: "1",
+        modifiers: [.command, .shift]
+    )
+    let economical = try #require(store.entries.first)
+    #expect(economical.shortcut == economicalShortcut)
+    #expect(economical.chatGPT == ChatGPTSelection(model: .luna56, effort: .high))
+    #expect(economical.cursor == CursorSelection(model: .composer25Fast, effort: .high))
+    #expect(economical.antigravity == AntigravitySelection(model: .gemini37Flash, effort: .high))
+    #expect(economical.claudeCode == nil)
+
+    let premiumShortcut = try KeyboardShortcut(
+        keyCode: 19,
+        keyLabel: "2",
+        modifiers: [.command, .shift]
+    )
+    let premium = try #require(store.entries.last)
+    #expect(premium.shortcut == premiumShortcut)
+    #expect(premium.chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
+    #expect(premium.cursor == CursorSelection(model: .gpt56Sol, effort: .high))
+    #expect(premium.antigravity == AntigravitySelection(model: .gemini31Pro, effort: .high))
+    #expect(premium.claudeCode == nil)
+
+    #expect(ProfileStore(defaults: defaults).entries == store.entries)
+}
+
+@MainActor
+@Test func establishedInstallWithoutSavedConfigurationStaysEmpty() {
+    let defaults = unconfiguredDefaults()
+    defaults.set(true, forKey: ProfileStore.didOpenInitialSettingsKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.isValid)
+    #expect(store.entries.isEmpty)
+    #expect(ProfileStore(defaults: defaults).entries.isEmpty)
 }
 
 @MainActor
@@ -48,7 +95,7 @@ private func isolatedDefaults() -> UserDefaults {
 
 @MainActor
 @Test func legacyConfigurationMigratesOnceToChatGPTOnly() throws {
-    let defaults = isolatedDefaults()
+    let defaults = unconfiguredDefaults()
     let id = UUID()
     let legacy = LegacyShortcutConfiguration(entries: [
         LegacyShortcutEntry(
@@ -185,6 +232,7 @@ private func isolatedDefaults() -> UserDefaults {
     store.reset()
     #expect(store.isValid)
     #expect(store.entries.isEmpty)
+    #expect(ProfileStore(defaults: defaults).entries.isEmpty)
 }
 
 @MainActor

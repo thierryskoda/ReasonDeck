@@ -61,6 +61,7 @@ struct LegacyShortcutConfiguration: Codable, Sendable {
 final class ProfileStore {
     static let storageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
     static let legacyStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v1"
+    static let didOpenInitialSettingsKey = "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
 
     private(set) var configuration: ShortcutConfiguration?
     private(set) var invalidReason: String?
@@ -83,7 +84,23 @@ final class ProfileStore {
             return
         }
 
-        configuration = .empty
+        if defaults.bool(forKey: Self.didOpenInitialSettingsKey) {
+            configuration = .empty
+            save(.empty)
+            return
+        }
+
+        do {
+            let initialConfiguration = try Self.makeFirstInstallConfiguration()
+            defaults.set(
+                try JSONEncoder().encode(StoredShortcutConfiguration(configuration: initialConfiguration)),
+                forKey: Self.storageKey
+            )
+            configuration = initialConfiguration
+        } catch {
+            configuration = nil
+            invalidReason = "Default shortcuts could not be created. Reset to empty to continue."
+        }
     }
 
     func entry(id: UUID) -> ShortcutEntry? {
@@ -409,5 +426,32 @@ final class ProfileStore {
         configuration = nil
         invalidReason = reason
         onChange?()
+    }
+
+    private static func makeFirstInstallConfiguration() throws -> ShortcutConfiguration {
+        try ShortcutConfiguration(entries: [
+            ShortcutEntry(
+                shortcut: KeyboardShortcut(
+                    keyCode: 18,
+                    keyLabel: "1",
+                    modifiers: [.command, .shift]
+                ),
+                chatGPT: ChatGPTSelection(model: .luna56, effort: .high),
+                claudeCode: nil,
+                cursor: CursorSelection(model: .composer25Fast, effort: .high),
+                antigravity: AntigravitySelection(model: .gemini37Flash, effort: .high)
+            ),
+            ShortcutEntry(
+                shortcut: KeyboardShortcut(
+                    keyCode: 19,
+                    keyLabel: "2",
+                    modifiers: [.command, .shift]
+                ),
+                chatGPT: ChatGPTSelection(model: .sol56, effort: .high),
+                claudeCode: nil,
+                cursor: CursorSelection(model: .gpt56Sol, effort: .high),
+                antigravity: AntigravitySelection(model: .gemini31Pro, effort: .high)
+            )
+        ])
     }
 }

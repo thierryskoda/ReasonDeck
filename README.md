@@ -1,8 +1,8 @@
 # ReasonDeck
 
-ReasonDeck is a small macOS menu-bar app for switching model and reasoning settings in ChatGPT and Cursor with keyboard shortcuts you choose.
+ReasonDeck is a small macOS menu-bar app for switching model and reasoning settings in supported AI apps with keyboard shortcuts you choose.
 
-It is local-only, starts with no shortcuts, and is unofficial. It is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, or Google.
+It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, or Google.
 
 ![ReasonDeck switching the reasoning effort in Cursor with keyboard shortcuts](docs/reasondeck-demo.gif)
 
@@ -21,7 +21,7 @@ Version 0.1.0 is a prerelease and supports ChatGPT. The current source is ahead 
 1. Open the DMG and drag **ReasonDeck** to **Applications**.
 2. Open ReasonDeck from Applications. It appears in the menu bar instead of the Dock.
 3. In Settings, choose **Allow Accessibility** and **Allow Input Monitoring**, then enable ReasonDeck in the System Settings panes that open.
-4. Add a shortcut and choose its model and reasoning effort.
+4. Review the two starter shortcuts or customize their models, efforts, and keys.
 
 Official binaries are signed with Developer ID and notarized by Apple. Do not install a copy that requires a Gatekeeper bypass or a terminal command.
 
@@ -32,6 +32,15 @@ Official binaries are signed with Developer ID and notarized by Apple. Do not in
 - Passes the same keys through normally in every other app.
 - Rejects shortcuts without Command, Option, or Control and prevents duplicates.
 - Reports unavailable choices instead of guessing or silently substituting another model.
+
+On a first installation, the current source creates two editable starter shortcuts:
+
+| Shortcut | ChatGPT | Cursor | Antigravity |
+| --- | --- | --- | --- |
+| `⌘⇧1` economical | 5.6 Luna / High | Composer 2.5 Fast / High | Gemini 3.7 Flash / High |
+| `⌘⇧2` premium | 5.6 Sol / High | GPT-5.6 Sol / High | Gemini 3.1 Pro / High |
+
+Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
 The current source also includes Cursor's **Next finished session** shortcut. Claude Code switching remains gated until its signed live Accessibility checks pass. Neither change is part of the downloadable 0.1.0 build.
 

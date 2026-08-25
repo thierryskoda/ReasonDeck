@@ -73,7 +73,7 @@ final class MenuBarViewModel {
             Task { @MainActor in self?.retryPermissions() }
         }
         refreshPermissions()
-        let firstRunKey = "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
+        let firstRunKey = ProfileStore.didOpenInitialSettingsKey
         if !UserDefaults.standard.bool(forKey: firstRunKey) {
             UserDefaults.standard.set(true, forKey: firstRunKey)
             DispatchQueue.main.async { [weak self] in self?.openSettings() }
