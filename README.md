@@ -14,7 +14,7 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.1.0)
 
-Version 0.1.0 is a prerelease and supports ChatGPT. The current source is ahead of that build and also contains newer Cursor work.
+Version 0.1.0 is a prerelease and supports ChatGPT. The current source is ahead of that build and also contains newer Claude Desktop, Cursor, and Antigravity work.
 
 ### Install
 
@@ -28,6 +28,7 @@ Official binaries are signed with Developer ID and notarized by Apple. Do not in
 ## What it does
 
 - Creates any number of model-and-effort shortcuts.
+- Keeps every model shortcut editor visible for direct configuration.
 - Runs a shortcut only when its supported app is frontmost.
 - Passes the same keys through normally in every other app.
 - Rejects shortcuts without Command, Option, or Control and prevents duplicates.
@@ -42,7 +43,7 @@ On a first installation, the current source creates two editable starter shortcu
 
 Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
-The current source also includes Cursor's **Next finished session** shortcut. Claude Code switching remains gated until its signed live Accessibility checks pass. Neither change is part of the downloadable 0.1.0 build.
+The current source enables Claude Desktop model switching and includes Cursor's **Next finished session** shortcut. Claude's Home/Chat composer passed signed live switching on Claude Desktop 1.34493.1 with a Free account; it works independently of the paid Code tab. Haiku 4.5 selects successfully, but Claude exposes its `Extended` mode instead of ReasonDeck's standard effort set, so a requested standard effort is truthfully reported as unavailable. The Code-specific path still requires a paid account and remains experimental until it passes a signed live switch. Neither change is part of the downloadable 0.1.0 build.
 
 Other adapter code in the development branch is experimental unless a release note explicitly includes it.
 
@@ -54,6 +55,7 @@ ChatGPT efforts currently recognized by source: Extra High, Medium, None, Light,
 
 - macOS 14 or later
 - The English ChatGPT Mac app (`com.openai.codex`)
+- The English Claude Desktop app (`com.anthropic.claudefordesktop`); a paid plan is required only for the separate Code tab
 - The English Cursor Mac app (`com.todesktop.230313mzl4w4u92`) when building the current source
 - Accessibility and Input Monitoring permission
 
@@ -68,7 +70,7 @@ Compilation and unit tests are not compatibility proof. Each supported app versi
 - No network implementation, analytics, or account credentials.
 - No collection, storage, logging, or transmission of chat or editor content.
 - Shortcuts capture the frontmost supported process, then verify its focused window before switching.
-- ChatGPT and Cursor recheck that target before actions and verify the final selection.
+- ChatGPT, Claude Desktop, and Cursor recheck that target before actions and verify the final selection.
 - Model and effort labels are closed sets in source.
 - No fixed screen coordinates.
 
@@ -81,6 +83,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 - **Permissions are required:** Use the matching **Allow** action in ReasonDeck Settings, enable the installed app in System Settings, then return to ReasonDeck.
 - **Hotkeys do not respond:** Confirm Input Monitoring is enabled. ReasonDeck retries its listener when the app becomes active again; relaunch once if macOS asks.
 - **Only the model changes:** The requested effort was unavailable or could not be verified. ReasonDeck reports a partial result instead of rolling the model back.
+- **Claude Desktop's controls cannot be found:** On Home, select Chat and leave the composer visible. For Claude Code, open an idle Code session on a paid plan.
 - **A shortcut will not save:** Include Command, Option, or Control. Escape cancels recording, unmodified Delete clears it, and duplicate combinations are rejected.
 - **Cursor's model control is unavailable:** Open the Agents sidebar and leave an idle Agent or Chat composer visible.
 - **A model is unavailable:** The account or app no longer exposes the exact saved label. ReasonDeck does not substitute a similar model.

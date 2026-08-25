@@ -54,7 +54,7 @@ private let bindings = [
     #expect(ShortcutRecording.capture(keyCode: 0, flags: [], keyLabel: "a") == .rejected)
 }
 
-@Test func onlyVerifiedAdapterTargetsConsumeTheirConfiguredShortcut() throws {
+@Test func everySupportedAdapterConsumesItsConfiguredShortcut() throws {
     let shortcut = try KeyboardShortcut(keyCode: 18, keyLabel: "1", modifiers: [.command, .shift])
     let entry = ShortcutEntry(
         shortcut: shortcut,
@@ -69,6 +69,6 @@ private let bindings = [
     )
 
     #expect(HotkeyMatcher.match(keyCode: 18, flags: [.maskCommand, .maskShift], isRepeat: false, frontmostBundleID: AppConstants.chatGPTBundleID, bindings: [binding])?.target == .chatGPT)
-    #expect(HotkeyMatcher.match(keyCode: 18, flags: [.maskCommand, .maskShift], isRepeat: false, frontmostBundleID: AppConstants.claudeDesktopBundleID, bindings: [binding]) == nil)
+    #expect(HotkeyMatcher.match(keyCode: 18, flags: [.maskCommand, .maskShift], isRepeat: false, frontmostBundleID: AppConstants.claudeDesktopBundleID, bindings: [binding])?.target == .claudeCode)
     #expect(HotkeyMatcher.match(keyCode: 18, flags: [.maskCommand, .maskShift], isRepeat: false, frontmostBundleID: AppConstants.cursorBundleID, bindings: [binding])?.target == .cursor)
 }

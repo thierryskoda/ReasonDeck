@@ -56,7 +56,7 @@ private actor NavigationSpy: CursorNavigating {
     #expect(await navigation.calls == 0)
 }
 
-@Test func gatedAdapterIsNotCalledByTheDispatcher() async {
+@Test func claudeAdapterIsCalledByTheDispatcher() async {
     let chatGPT = ChatGPTSpy()
     let cursor = CursorSpy()
     let claude = ClaudeSpy()
@@ -71,8 +71,8 @@ private actor NavigationSpy: CursorNavigating {
     let invocation = HotkeyInvocation(entryID: entry.id, target: .claudeCode, pid: 42, focusedWindowID: 9)
 
     let result = await dispatcher.apply(entry: entry, invocation: invocation)
-    if case .profile(.failure(_, .capabilityGated)) = result {} else { Issue.record("Expected capability gate") }
-    #expect(await claude.calls == 0)
+    if case .profile(.failure(_, .claudeCodeSurfaceNotFound)) = result {} else { Issue.record("Expected Claude adapter result") }
+    #expect(await claude.calls == 1)
     #expect(await chatGPT.calls == 0)
     #expect(await cursor.calls == 0)
     #expect(await navigation.calls == 0)

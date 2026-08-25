@@ -139,3 +139,49 @@ private let claudeInvocation = HotkeyInvocation(
         numericValue: 1
     ))
 }
+
+@Test func claudeChatComposerTitleParsesOnlyClosedModelAndEffortLabels() {
+    #expect(
+        ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Medium")
+            == ClaudeCodeSelection(model: .sonnet5, effort: .medium)
+    )
+    #expect(
+        ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Extra")
+            == ClaudeCodeSelection(model: .sonnet5, effort: .extraHigh)
+    )
+    #expect(ClaudeChatLabels.selection(inComposerTitle: "Sonnet 5 Medium") == nil)
+    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Turbo") == nil)
+    #expect(ClaudeChatLabels.model(inComposerTitle: "Model: Haiku 4.5 Extended") == .haiku45)
+    #expect(ClaudeChatLabels.effort(inComposerTitle: "Model: Haiku 4.5 Extended") == nil)
+}
+
+@Test func claudeChatPickerRowsUseExactClosedLabelsAndRejectUpgradeRows() {
+    #expect(
+        ClaudeChatLabels.model(
+            inPickerRow: "Sonnet 5 Most efficient for everyday tasks"
+        ) == .sonnet5
+    )
+    #expect(
+        ClaudeChatLabels.model(
+            inPickerRow: "Haiku 4.5 Fastest for quick answers"
+        ) == .haiku45
+    )
+    #expect(
+        ClaudeChatLabels.model(
+            inPickerRow: "Opus 5 Pro For complex tasks Upgrade"
+        ) == nil
+    )
+    #expect(ClaudeChatLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
+}
+
+@Test func claudeChatEffortRowsMapExactChatLabelsToTypedEfforts() {
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Low") == .low)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Medium Default") == .medium)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Extra") == .extraHigh)
+    #expect(ClaudeChatLabels.pickerLabel(for: .medium) == "Medium")
+    #expect(ClaudeChatLabels.pickerRowLabel(for: .medium) == "Medium Default")
+    #expect(ClaudeChatLabels.pickerLabel(for: .extraHigh) == "Extra")
+    #expect(ClaudeChatLabels.pickerRowLabel(for: .ultracode) == nil)
+    #expect(ClaudeChatLabels.pickerLabel(for: .ultracode) == nil)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Extended") == nil)
+}

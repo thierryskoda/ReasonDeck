@@ -1,6 +1,64 @@
 import AppKit
 import ApplicationServices
 import Foundation
+import os
+
+enum ClaudeChatLabels {
+    private static let composerEfforts: [(label: String, effort: ClaudeCodeEffort)] = [
+        ("Low", .low),
+        ("Medium", .medium),
+        ("High", .high),
+        ("Extra", .extraHigh),
+        ("Max", .max),
+    ]
+
+    private static let pickerModels: [String: ClaudeCodeModel] = [
+        "Sonnet 5 Most efficient for everyday tasks": .sonnet5,
+        "Haiku 4.5 Fastest for quick answers": .haiku45,
+    ]
+
+    private static let pickerEfforts: [String: ClaudeCodeEffort] = [
+        "Low": .low,
+        "Medium Default": .medium,
+        "High": .high,
+        "Extra": .extraHigh,
+        "Max": .max,
+    ]
+
+    static func selection(inComposerTitle title: String) -> ClaudeCodeSelection? {
+        for model in ClaudeCodeModel.allCases {
+            for candidate in composerEfforts where title == "Model: \(model.rawValue) \(candidate.label)" {
+                return ClaudeCodeSelection(model: model, effort: candidate.effort)
+            }
+        }
+        return nil
+    }
+
+    static func model(inComposerTitle title: String) -> ClaudeCodeModel? {
+        if let selection = selection(inComposerTitle: title) { return selection.model }
+        return title == "Model: Haiku 4.5 Extended" ? .haiku45 : nil
+    }
+
+    static func effort(inComposerTitle title: String) -> ClaudeCodeEffort? {
+        selection(inComposerTitle: title)?.effort
+    }
+
+    static func model(inPickerRow label: String) -> ClaudeCodeModel? {
+        pickerModels[label]
+    }
+
+    static func effort(inPickerRow label: String) -> ClaudeCodeEffort? {
+        pickerEfforts[label]
+    }
+
+    static func pickerLabel(for effort: ClaudeCodeEffort) -> String? {
+        composerEfforts.first(where: { $0.effort == effort })?.label
+    }
+
+    static func pickerRowLabel(for effort: ClaudeCodeEffort) -> String? {
+        pickerEfforts.first(where: { $0.value == effort })?.key
+    }
+}
 
 enum ClaudeMenuSelection {
     static func isPersistent(
@@ -84,17 +142,542 @@ actor ClaudeCodeSwitchCoordinator: ClaudeCodeApplying {
 }
 
 actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
+    private let logger = Logger(
+        subsystem: "com.thierryai.ReasonDeck",
+        category: "claude-surface"
+    )
     private let deadline: Duration = .seconds(2)
+    private let pollInterval: Duration = .milliseconds(50)
+    private var accessibilityPreparationAttemptedPID: pid_t?
 
     func selectModel(_ model: ClaudeCodeModel, invocation: HotkeyInvocation) async throws -> String {
-        try await choose(model.rawValue, shortcutKeyCode: 34, invocation: invocation)
+        try await prepareWebAccessibility(invocation: invocation)
+        switch try surface(invocation: invocation) {
+        case .chat:
+            return try await chooseChatModel(model, invocation: invocation)
+        case .code:
+            return try await chooseCode(model.rawValue, shortcutKeyCode: 34, invocation: invocation)
+        }
     }
 
     func selectEffort(_ effort: ClaudeCodeEffort, invocation: HotkeyInvocation) async throws -> String {
-        try await choose(effort.rawValue, shortcutKeyCode: 14, invocation: invocation)
+        try await prepareWebAccessibility(invocation: invocation)
+        switch try surface(invocation: invocation) {
+        case .chat:
+            return try await chooseChatEffort(effort, invocation: invocation)
+        case .code:
+            return try await chooseCode(effort.rawValue, shortcutKeyCode: 14, invocation: invocation)
+        }
     }
 
-    private func choose(_ label: String, shortcutKeyCode: CGKeyCode, invocation: HotkeyInvocation) async throws -> String {
+    private func prepareWebAccessibility(invocation: HotkeyInvocation) async throws {
+        try validate(invocation, requiresCodeSurface: false)
+        guard accessibilityPreparationAttemptedPID != invocation.pid else { return }
+        let application = AXUIElementCreateApplication(invocation.pid)
+        let manualResult = AXUIElementSetAttributeValue(
+            application,
+            "AXManualAccessibility" as CFString,
+            kCFBooleanTrue
+        )
+        let enhancedResult: AXError = manualResult == .success ? .success : AXUIElementSetAttributeValue(
+            application,
+            "AXEnhancedUserInterface" as CFString,
+            kCFBooleanTrue
+        )
+        accessibilityPreparationAttemptedPID = invocation.pid
+        if enhancedResult == .success {
+            try await Task.sleep(for: .milliseconds(150))
+        } else {
+            logger.error("Could not enable Claude web accessibility manualError=\(manualResult.rawValue, privacy: .public) enhancedError=\(enhancedResult.rawValue, privacy: .public)")
+        }
+        try validate(invocation, requiresCodeSurface: false)
+    }
+
+    private enum Surface {
+        case chat
+        case code
+    }
+
+    private struct ChatComposer {
+        let popup: AXUIElement
+        let title: String
+        let model: ClaudeCodeModel
+        let effort: ClaudeCodeEffort?
+    }
+
+    private struct RawNode {
+        let id: CFHashCode
+        let parentID: CFHashCode?
+        let element: AXUIElement
+        let role: String
+        let actionable: Bool
+        let showsMenu: Bool
+        let visible: Bool
+        let frame: CGRect?
+    }
+
+    private struct LiveMenu {
+        let root: RawNode
+        let nodes: [RawNode]
+    }
+
+    private func surface(invocation: HotkeyInvocation) throws -> Surface {
+        try validate(invocation, requiresCodeSurface: false)
+        if try chatComposer(invocation: invocation) != nil { return .chat }
+
+        let application = AXUIElementCreateApplication(invocation.pid)
+        guard let window: AXUIElement = value(application, kAXFocusedWindowAttribute) else {
+            throw SwitchFailure.targetChanged(ApplicationTarget.claudeCode.displayName)
+        }
+        guard containsCodeSurface(in: window) else {
+            throw SwitchFailure.claudeCodeSurfaceNotFound
+        }
+        return .code
+    }
+
+    private func chooseChatModel(
+        _ model: ClaudeCodeModel,
+        invocation: HotkeyInvocation
+    ) async throws -> String {
+        guard let initial = try chatComposer(invocation: invocation) else {
+            throw SwitchFailure.claudeCodeSurfaceNotFound
+        }
+        if initial.model == model { return model.rawValue }
+
+        do {
+            let menu = try await openChatModelMenu(invocation: invocation)
+            let rows = modelRows(in: menu)
+            guard Set(rows.map(\.model)).count >= 2 else {
+                throw SwitchFailure.accessibility("Claude Chat model menu could not be verified.")
+            }
+            guard let row = uniqueRow(rows.filter { $0.model == model }.map(\.node)) else {
+                throw SwitchFailure.modelUnavailable(model.rawValue)
+            }
+            let originalPointer = try performMenuRow(row, in: menu, invocation: invocation)
+            defer { TrustedTargetAction.restorePointer(to: originalPointer) }
+            try await waitForChatMenusToClose(invocation: invocation)
+            _ = try await waitForChatComposer(
+                model: model,
+                effort: nil,
+                invocation: invocation
+            )
+            return model.rawValue
+        } catch {
+            try? await dismissVerifiedChatMenuIfNeeded(invocation: invocation)
+            throw error
+        }
+    }
+
+    private func chooseChatEffort(
+        _ effort: ClaudeCodeEffort,
+        invocation: HotkeyInvocation
+    ) async throws -> String {
+        guard let initial = try chatComposer(invocation: invocation) else {
+            throw SwitchFailure.claudeCodeSurfaceNotFound
+        }
+        if initial.effort == effort { return effort.rawValue }
+        guard let desiredLabel = ClaudeChatLabels.pickerRowLabel(for: effort),
+              let currentEffort = initial.effort,
+              let currentLabel = ClaudeChatLabels.pickerLabel(for: currentEffort)
+        else { throw SwitchFailure.effortUnavailable(effort.rawValue) }
+
+        var originalPointer: CGPoint?
+        defer { TrustedTargetAction.restorePointer(to: originalPointer) }
+        do {
+            _ = try await openChatModelMenu(invocation: invocation)
+            // Claude publishes the verified menu before its nested-menu responder
+            // is ready to accept focus, then replaces parts of the Chromium AX
+            // subtree. Let it settle and refresh every element reference.
+            try await Task.sleep(for: .milliseconds(500))
+            try validate(invocation, requiresCodeSurface: false)
+            guard let modelMenu = try await waitForModelMenu(
+                title: initial.title,
+                timeout: deadline,
+                invocation: invocation
+            ) else {
+                throw SwitchFailure.accessibility("Claude Chat model menu did not stabilize.")
+            }
+            let triggerLabel = "Effort \(currentLabel)"
+            let triggers = modelMenu.nodes.filter {
+                $0.visible
+                    && isDescendant($0.id, of: modelMenu.root.id, in: modelMenu.nodes)
+                    && controlLabels($0.element).contains(triggerLabel)
+                    && validFrame($0.frame)
+            }
+            guard let trigger = uniqueRow(triggers) else {
+                throw SwitchFailure.effortUnavailable(effort.rawValue)
+            }
+            originalPointer = try performMenuRow(trigger, in: modelMenu, invocation: invocation)
+            try await Task.sleep(for: .milliseconds(300))
+            try TrustedTargetAction.postFocusedKey(keyCode: 124, flags: [], invocation: invocation)
+            let effortMenu = try await waitForEffortMenu(
+                title: triggerLabel,
+                timeout: deadline,
+                invocation: invocation
+            )
+            guard let effortMenu else {
+                throw SwitchFailure.accessibility("Claude Chat effort menu did not open.")
+            }
+            let rows = effortRows(in: effortMenu)
+            guard Set(rows.map(\.effort)).count >= 3 else {
+                throw SwitchFailure.accessibility("Claude Chat effort menu could not be verified.")
+            }
+            guard let row = uniqueRow(rows.filter { $0.effort == effort }.map(\.node)),
+                  rows.contains(where: { $0.node.id == row.id && $0.label == desiredLabel })
+            else { throw SwitchFailure.effortUnavailable(effort.rawValue) }
+            _ = try performMenuRow(row, in: effortMenu, invocation: invocation)
+            try await waitForChatMenusToClose(invocation: invocation)
+            _ = try await waitForChatComposer(
+                model: initial.model,
+                effort: effort,
+                invocation: invocation
+            )
+            return effort.rawValue
+        } catch {
+            try? await dismissVerifiedChatMenuIfNeeded(invocation: invocation)
+            throw error
+        }
+    }
+
+    private func openChatModelMenu(invocation: HotkeyInvocation) async throws -> LiveMenu {
+        guard verifiedChatMenuRoots(invocation: invocation).isEmpty,
+              let composer = try chatComposer(invocation: invocation)
+        else { throw SwitchFailure.accessibility("A Claude Chat model menu was already open.") }
+
+        try TrustedTargetAction.press(composer.popup, invocation: invocation)
+        if let menu = try await waitForModelMenu(
+            title: composer.title,
+            timeout: .milliseconds(350),
+            invocation: invocation
+        ) { return menu }
+
+        let actionNames = actions(composer.popup)
+        if actionNames.contains(kAXShowMenuAction as String) {
+            try TrustedTargetAction.showMenu(composer.popup, invocation: invocation)
+        } else if let popupFrame = AXWindowIdentity.frame(composer.popup) {
+            let pointer = try TrustedTargetAction.click(frame: popupFrame, invocation: invocation)
+            TrustedTargetAction.restorePointer(to: pointer)
+        }
+        guard let menu = try await waitForModelMenu(
+            title: composer.title,
+            timeout: deadline,
+            invocation: invocation
+        ) else { throw SwitchFailure.accessibility("Claude Chat model menu did not open.") }
+        return menu
+    }
+
+    private func waitForModelMenu(
+        title: String,
+        timeout: Duration,
+        invocation: HotkeyInvocation
+    ) async throws -> LiveMenu? {
+        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+            Set(self.modelRows(in: menu).map(\.model)).count >= 2
+        }
+    }
+
+    private func waitForEffortMenu(
+        title: String,
+        timeout: Duration,
+        invocation: HotkeyInvocation
+    ) async throws -> LiveMenu? {
+        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+            Set(self.effortRows(in: menu).map(\.effort)).count >= 3
+        }
+    }
+
+    private func waitForMenu(
+        title: String,
+        timeout: Duration,
+        invocation: HotkeyInvocation,
+        verifying predicate: (LiveMenu) -> Bool
+    ) async throws -> LiveMenu? {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: timeout)
+        while clock.now < end {
+            let matches = try menus(titled: title, invocation: invocation).filter(predicate)
+            if matches.count == 1 { return matches[0] }
+            if matches.count > 1 {
+                throw SwitchFailure.accessibility("Claude Chat menu was ambiguous.")
+            }
+            try await Task.sleep(for: pollInterval)
+        }
+        return nil
+    }
+
+    private func waitForChatComposer(
+        model: ClaudeCodeModel,
+        effort: ClaudeCodeEffort?,
+        invocation: HotkeyInvocation
+    ) async throws -> ChatComposer {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: deadline)
+        var lastTitle = "unexposed"
+        while clock.now < end {
+            if let current = try chatComposer(invocation: invocation) {
+                lastTitle = current.title
+                if current.model == model, effort == nil || current.effort == effort {
+                    return current
+                }
+            }
+            try await Task.sleep(for: pollInterval)
+        }
+        let expected = effort.map { "Model: \(model.rawValue) \(ClaudeChatLabels.pickerLabel(for: $0) ?? $0.rawValue)" }
+            ?? model.rawValue
+        throw SwitchFailure.verificationMismatch(expected: expected, observed: lastTitle)
+    }
+
+    private func waitForChatMenusToClose(invocation: HotkeyInvocation) async throws {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: deadline)
+        while clock.now < end {
+            try validate(invocation, requiresCodeSurface: false)
+            if verifiedChatMenuRoots(invocation: invocation).isEmpty { return }
+            try await Task.sleep(for: pollInterval)
+        }
+        throw SwitchFailure.deadlineExceeded("waiting for Claude Chat’s verified model menu to close")
+    }
+
+    private func dismissVerifiedChatMenuIfNeeded(invocation: HotkeyInvocation) async throws {
+        try validate(invocation, requiresCodeSurface: false)
+        guard !verifiedChatMenuRoots(invocation: invocation).isEmpty else { return }
+        try TrustedTargetAction.postFocusedKey(keyCode: 53, flags: [], invocation: invocation)
+        try await waitForChatMenusToClose(invocation: invocation)
+    }
+
+    private func chatComposer(invocation: HotkeyInvocation) throws -> ChatComposer? {
+        try validate(invocation, requiresCodeSurface: false)
+        let nodes = try windowNodes(invocation: invocation)
+        let inputs = nodes.filter { node in
+            node.visible
+                && [kAXTextAreaRole as String, kAXTextFieldRole as String].contains(node.role)
+                && controlLabels(node.element).contains("Write your prompt to Claude")
+        }
+        let popups = nodes.compactMap { node -> (RawNode, String, ClaudeCodeModel, ClaudeCodeEffort?)? in
+            guard node.visible,
+                  node.role == kAXPopUpButtonRole as String,
+                  node.actionable || node.showsMenu,
+                  let title = controlLabels(node.element).first(where: {
+                      ClaudeChatLabels.model(inComposerTitle: $0) != nil
+                  }),
+                  let model = ClaudeChatLabels.model(inComposerTitle: title),
+                  validFrame(node.frame)
+            else { return nil }
+            return (node, title, model, ClaudeChatLabels.effort(inComposerTitle: title))
+        }
+        guard inputs.count == 1 else {
+            logger.error("chat_surface_missing phase=input inputs=\(inputs.count, privacy: .public) popups=\(popups.count, privacy: .public)")
+            if inputs.isEmpty, popups.isEmpty { return nil }
+            throw SwitchFailure.accessibility("Claude Chat composer was ambiguous.")
+        }
+        let candidates = popups.filter {
+            sharesBoundedAncestor(
+                [inputs[0].id, $0.0.id],
+                in: nodes,
+                maxDistance: 12
+            )
+        }
+        guard candidates.count == 1 else {
+            logger.error("chat_surface_missing phase=relationship candidates=\(candidates.count, privacy: .public) popups=\(popups.count, privacy: .public)")
+            if candidates.isEmpty { return nil }
+            throw SwitchFailure.accessibility("Claude Chat model control was ambiguous.")
+        }
+        let candidate = candidates[0]
+        return ChatComposer(
+            popup: candidate.0.element,
+            title: candidate.1,
+            model: candidate.2,
+            effort: candidate.3
+        )
+    }
+
+    private func menus(titled title: String, invocation: HotkeyInvocation) throws -> [LiveMenu] {
+        let nodes = try windowNodes(invocation: invocation)
+        return nodes.compactMap { node in
+            guard node.visible,
+                  node.role == kAXMenuRole as String,
+                  controlLabels(node.element).contains(title),
+                  validFrame(node.frame)
+            else { return nil }
+            return LiveMenu(root: node, nodes: nodes)
+        }
+    }
+
+    private func verifiedChatMenuRoots(invocation: HotkeyInvocation) -> [RawNode] {
+        guard let nodes = try? windowNodes(invocation: invocation) else { return [] }
+        return nodes.filter { node in
+            guard node.visible, node.role == kAXMenuRole as String else { return false }
+            return controlLabels(node.element).contains { label in
+                ClaudeChatLabels.model(inComposerTitle: label) != nil
+                    || ClaudeChatLabels.pickerLabel(for: .low).map { label == "Effort \($0)" } == true
+                    || ClaudeChatLabels.pickerLabel(for: .medium).map { label == "Effort \($0)" } == true
+                    || ClaudeChatLabels.pickerLabel(for: .high).map { label == "Effort \($0)" } == true
+                    || ClaudeChatLabels.pickerLabel(for: .extraHigh).map { label == "Effort \($0)" } == true
+                    || ClaudeChatLabels.pickerLabel(for: .max).map { label == "Effort \($0)" } == true
+            }
+        }
+    }
+
+    private func modelRows(in menu: LiveMenu) -> [(node: RawNode, model: ClaudeCodeModel)] {
+        menu.nodes.compactMap { node in
+            guard node.visible,
+                  isDescendant(node.id, of: menu.root.id, in: menu.nodes),
+                  let model = controlLabels(node.element).compactMap(ClaudeChatLabels.model(inPickerRow:)).first,
+                  validFrame(node.frame)
+            else { return nil }
+            return (node, model)
+        }
+    }
+
+    private func effortRows(in menu: LiveMenu) -> [(node: RawNode, effort: ClaudeCodeEffort, label: String)] {
+        menu.nodes.compactMap { node in
+            guard node.visible,
+                  isDescendant(node.id, of: menu.root.id, in: menu.nodes),
+                  let pair = controlLabels(node.element).compactMap({ label in
+                      ClaudeChatLabels.effort(inPickerRow: label).map { (effort: $0, label: label) }
+                  }).first,
+                  validFrame(node.frame)
+            else { return nil }
+            return (node, pair.effort, pair.label)
+        }
+    }
+
+    private func performMenuRow(
+        _ row: RawNode,
+        in menu: LiveMenu,
+        invocation: HotkeyInvocation
+    ) throws -> CGPoint? {
+        if row.actionable {
+            try TrustedTargetAction.press(row.element, invocation: invocation)
+            return nil
+        }
+        return try clickMenuRow(row, in: menu, invocation: invocation)
+    }
+
+    private func clickMenuRow(
+        _ row: RawNode,
+        in menu: LiveMenu,
+        invocation: HotkeyInvocation
+    ) throws -> CGPoint? {
+        guard let rowFrame = row.frame,
+              let menuFrame = menu.root.frame,
+              menuFrame.width > 0, menuFrame.height > 0,
+              menuFrame.width <= 1_000, menuFrame.height <= 1_000
+        else { throw SwitchFailure.accessibility("Claude Chat menu geometry was unavailable.") }
+        let point = CGPoint(x: rowFrame.midX, y: rowFrame.midY)
+        guard menuFrame.contains(point) else {
+            throw SwitchFailure.accessibility("Claude Chat menu row geometry was invalid.")
+        }
+        return try TrustedTargetAction.click(
+            frame: CGRect(x: point.x - 1, y: point.y - 1, width: 2, height: 2),
+            invocation: invocation
+        )
+    }
+
+    private func uniqueRow(_ rows: [RawNode]) -> RawNode? {
+        let unique = Dictionary(grouping: rows, by: \.id).compactMap(\.value.first)
+        return unique.count == 1 ? unique[0] : nil
+    }
+
+    private func windowNodes(invocation: HotkeyInvocation) throws -> [RawNode] {
+        try validate(invocation, requiresCodeSurface: false)
+        let application = AXUIElementCreateApplication(invocation.pid)
+        guard let window: AXUIElement = value(application, kAXFocusedWindowAttribute),
+              AXWindowIdentity.focusedWindowID(application: application, pid: invocation.pid)
+                == invocation.focusedWindowID
+        else { throw SwitchFailure.targetChanged(ApplicationTarget.claudeCode.displayName) }
+        // Claude Desktop nests the Home/Chat composer controls below several
+        // Chromium wrapper groups. Keep this bounded, but deep enough to reach
+        // the exact prompt field, model popup, and owned menu rows.
+        let nodes = rawNodes(root: window, maxDepth: 36, maxNodes: 8_000)
+        try validate(invocation, requiresCodeSurface: false)
+        return nodes
+    }
+
+    private func rawNodes(root: AXUIElement, maxDepth: Int, maxNodes: Int) -> [RawNode] {
+        var queue: [(AXUIElement, CFHashCode?, Int)] = [(root, nil, 0)]
+        var output: [RawNode] = []
+        var visited = Set<CFHashCode>()
+        var index = 0
+        while index < queue.count, output.count < maxNodes {
+            let (element, parentID, depth) = queue[index]
+            index += 1
+            let id = CFHash(element)
+            guard visited.insert(id).inserted else { continue }
+            let role: String = value(element, kAXRoleAttribute) ?? ""
+            let hidden: Bool = value(element, "AXHidden") ?? false
+            let actionNames = actions(element)
+            output.append(RawNode(
+                id: id,
+                parentID: parentID,
+                element: element,
+                role: role,
+                actionable: actionNames.contains(kAXPressAction as String),
+                showsMenu: actionNames.contains(kAXShowMenuAction as String),
+                visible: !hidden,
+                frame: AXWindowIdentity.frame(element)
+            ))
+            guard depth < maxDepth else { continue }
+            let children: [AXUIElement] = value(element, kAXChildrenAttribute) ?? []
+            let visibleChildren: [AXUIElement] = value(element, kAXVisibleChildrenAttribute) ?? []
+            queue.append(contentsOf: (children + visibleChildren).map { ($0, id, depth + 1) })
+        }
+        return output
+    }
+
+    private func sharesBoundedAncestor(
+        _ ids: [CFHashCode],
+        in nodes: [RawNode],
+        maxDistance: Int
+    ) -> Bool {
+        guard let first = ids.first else { return false }
+        let index = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
+        func ancestors(of id: CFHashCode) -> Set<CFHashCode> {
+            var result: Set<CFHashCode> = [id]
+            var current = index[id]?.parentID
+            var distance = 1
+            while let value = current, distance <= maxDistance, result.insert(value).inserted {
+                current = index[value]?.parentID
+                distance += 1
+            }
+            return result
+        }
+        var common = ancestors(of: first)
+        for id in ids.dropFirst() { common.formIntersection(ancestors(of: id)) }
+        return !common.isEmpty
+    }
+
+    private func isDescendant(
+        _ nodeID: CFHashCode,
+        of ancestorID: CFHashCode,
+        in nodes: [RawNode]
+    ) -> Bool {
+        let index = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
+        var current = index[nodeID]?.parentID
+        var visited = Set<CFHashCode>()
+        while let id = current, visited.insert(id).inserted {
+            if id == ancestorID { return true }
+            current = index[id]?.parentID
+        }
+        return false
+    }
+
+    private func controlLabels(_ element: AXUIElement) -> [String] {
+        [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute]
+            .compactMap { value(element, $0) as String? }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func validFrame(_ frame: CGRect?) -> Bool {
+        guard let frame else { return false }
+        return frame.width > 0 && frame.height > 0
+            && frame.width <= 1_000 && frame.height <= 1_000
+            && frame.minX.isFinite && frame.minY.isFinite
+            && frame.maxX.isFinite && frame.maxY.isFinite
+    }
+
+    private func chooseCode(_ label: String, shortcutKeyCode: CGKeyCode, invocation: HotkeyInvocation) async throws -> String {
         try validate(invocation, requiresCodeSurface: true)
         let application = AXUIElementCreateApplication(invocation.pid)
         let existing = elementIdentities(in: application)

@@ -101,7 +101,7 @@ import Testing
     #expect(entry.enabledTargets == [.chatGPT, .claudeCode, .cursor])
 }
 
-@Test func onlyVerifiedModelAdaptersAreRunnableWithoutDiscardingAssignments() throws {
+@Test func configuredModelAdaptersAreRunnableForEverySupportedApplication() throws {
     let shortcut = try KeyboardShortcut(keyCode: 18, keyLabel: "1", modifiers: [.command])
     let entry = ShortcutEntry(
         shortcut: shortcut,
@@ -111,7 +111,7 @@ import Testing
     )
 
     #expect(entry.enabledTargets == [.chatGPT, .claudeCode, .cursor])
-    #expect(RuntimeCapabilities.runnableTargets(for: entry) == [.chatGPT, .cursor])
+    #expect(RuntimeCapabilities.runnableTargets(for: entry) == [.chatGPT, .claudeCode, .cursor])
 }
 
 @Test func cursorModelAndFinishedNavigationAreBothRunnable() throws {

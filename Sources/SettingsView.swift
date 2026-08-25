@@ -8,7 +8,6 @@ struct SettingsView: View {
     let cancelShortcutRecording: () -> Void
     @State private var assignmentError: String?
     @State private var selectedTab: ShortcutSettingsTab = .modelSwitching
-    @State private var expandedEntryIDs: Set<UUID> = []
     @State private var showsPermissionDetails = false
 
     var body: some View {
@@ -194,20 +193,15 @@ struct SettingsView: View {
                     .padding(.bottom, 12)
                 Divider()
 
-                if expandedEntryIDs.contains(entry.id) {
-                    modelTargetEditor(entry)
-                        .padding(.vertical, 12)
+                modelTargetEditor(entry)
+                    .padding(.vertical, 12)
 
-                    Divider()
+                Divider()
 
-                    Text("Runs only when an enabled app is frontmost. Use Command, Option, or Control in every shortcut.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 10)
-                } else {
-                    shortcutSummary(entry)
-                        .padding(.top, 12)
-                }
+                Text("Runs only when an enabled app is frontmost. Use Command, Option, or Control in every shortcut.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 10)
             }
         }
     }
@@ -219,28 +213,14 @@ struct SettingsView: View {
 
             Spacer(minLength: 12)
 
-            if expandedEntryIDs.contains(entry.id) {
-                Button(role: .destructive) {
-                    expandedEntryIDs.remove(entry.id)
-                    store.deleteEntry(entry.id)
-                } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.borderless)
-                .help("Delete \(entry.shortcut?.displayName ?? "unassigned") shortcut")
-                .accessibilityLabel("Delete \(entry.shortcut?.displayName ?? "unassigned") shortcut")
-            }
-
-            Button {
-                toggleExpansion(of: entry.id)
+            Button(role: .destructive) {
+                store.deleteEntry(entry.id)
             } label: {
-                Image(systemName: expandedEntryIDs.contains(entry.id) ? "chevron.up" : "chevron.down")
-                    .frame(width: 24, height: 24)
-                    .contentShape(Rectangle())
+                Image(systemName: "trash")
             }
             .buttonStyle(.borderless)
-            .help(expandedEntryIDs.contains(entry.id) ? "Hide shortcut details" : "Edit shortcut details")
-            .accessibilityLabel(expandedEntryIDs.contains(entry.id) ? "Hide shortcut details" : "Edit shortcut details")
+            .help("Delete \(entry.shortcut?.displayName ?? "unassigned") shortcut")
+            .accessibilityLabel("Delete \(entry.shortcut?.displayName ?? "unassigned") shortcut")
         }
     }
 
@@ -259,22 +239,6 @@ struct SettingsView: View {
                 assignmentError = error.message
             } catch {
                 assignmentError = "The shortcut could not be saved."
-            }
-        }
-    }
-
-    private func shortcutSummary(_ entry: ShortcutEntry) -> some View {
-        VStack(spacing: 10) {
-            ForEach(ApplicationTarget.allCases.filter(entry.enabledTargets.contains)) { target in
-                HStack(spacing: 16) {
-                    Label(target.displayName, systemImage: target.systemImage)
-
-                    Spacer(minLength: 16)
-
-                    Text(summaryValue(for: target, in: entry))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
             }
         }
     }
@@ -333,7 +297,7 @@ struct SettingsView: View {
             .labelsHidden()
             .frame(minWidth: 130)
         case .claudeCode:
-            Picker("Claude Code model", selection: claudeCodeModelBinding(for: entryID)) {
+            Picker("Claude Desktop model", selection: claudeCodeModelBinding(for: entryID)) {
                 ForEach(ClaudeCodeModel.allCases) { model in Text(model.rawValue).tag(model) }
             }
             .labelsHidden()
@@ -363,7 +327,7 @@ struct SettingsView: View {
             .labelsHidden()
             .frame(minWidth: 110)
         case .claudeCode:
-            Picker("Claude Code effort", selection: claudeCodeEffortBinding(for: entryID)) {
+            Picker("Claude Desktop effort", selection: claudeCodeEffortBinding(for: entryID)) {
                 ForEach(ClaudeCodeEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
             }
             .labelsHidden()
@@ -380,34 +344,6 @@ struct SettingsView: View {
             }
             .labelsHidden()
             .frame(minWidth: 110)
-        }
-    }
-
-    private func summaryValue(for target: ApplicationTarget, in entry: ShortcutEntry) -> String {
-        guard RuntimeCapabilities.supports(target) else { return "Unavailable" }
-
-        switch target {
-        case .chatGPT:
-            guard let selection = entry.chatGPT else { return "Off" }
-            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
-        case .claudeCode:
-            guard let selection = entry.claudeCode else { return "Off" }
-            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
-        case .cursor:
-            if entry.cursorNavigation != nil { return "Next finished session" }
-            guard let selection = entry.cursor else { return "Off" }
-            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
-        case .antigravity:
-            guard let selection = entry.antigravity else { return "Off" }
-            return "\(selection.model.rawValue) · \(selection.effort.rawValue)"
-        }
-    }
-
-    private func toggleExpansion(of id: UUID) {
-        if expandedEntryIDs.contains(id) {
-            expandedEntryIDs.remove(id)
-        } else {
-            expandedEntryIDs.insert(id)
         }
     }
 
@@ -451,9 +387,7 @@ struct SettingsView: View {
 
     private var addShortcutButton: some View {
         Button {
-            if let id = store.addEntry() {
-                expandedEntryIDs.insert(id)
-            }
+            _ = store.addEntry()
         } label: {
             Label("Add Shortcut", systemImage: "plus")
         }

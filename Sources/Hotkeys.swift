@@ -162,6 +162,27 @@ enum TrustedTargetAction {
         try validate(invocation)
     }
 
+    /// Delivers a key through the focused HID route after the same strict target
+    /// validation used for pointer fallback. Chromium-owned nested menus can
+    /// ignore `postToPid` even though their AX geometry and owner are verified.
+    static func postFocusedKey(
+        keyCode: CGKeyCode,
+        flags: CGEventFlags,
+        invocation: HotkeyInvocation
+    ) throws {
+        try validate(invocation)
+        guard let down = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true),
+              let up = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: false)
+        else { throw SwitchFailure.accessibility("Could not create a focused keyboard event.") }
+        for event in [down, up] {
+            event.flags = flags
+            event.setIntegerValueField(.eventSourceUserData, value: SyntheticEventMarker.value)
+        }
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        try validate(invocation)
+    }
+
     static func click(frame: CGRect, invocation: HotkeyInvocation) throws -> CGPoint? {
         try validate(invocation)
         guard frame.width > 0, frame.height > 0,

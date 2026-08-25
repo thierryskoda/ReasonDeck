@@ -34,7 +34,7 @@ enum ApplicationTarget: String, CaseIterable, Codable, Hashable, Sendable, Ident
     var displayName: String {
         switch self {
         case .chatGPT: "ChatGPT"
-        case .claudeCode: "Claude Code"
+        case .claudeCode: "Claude Desktop"
         case .cursor: "Cursor"
         case .antigravity: "Antigravity"
         }
@@ -53,7 +53,7 @@ enum ApplicationTarget: String, CaseIterable, Codable, Hashable, Sendable, Ident
 /// The single runtime support boundary. Persisted assignments remain intact when a
 /// target is gated, but gated targets cannot be exposed through shortcuts or menu actions.
 enum RuntimeCapabilities {
-    static let releaseReadyModelTargets: Set<ApplicationTarget> = [.chatGPT, .cursor, .antigravity]
+    static let releaseReadyModelTargets: Set<ApplicationTarget> = [.chatGPT, .claudeCode, .cursor, .antigravity]
     static let cursorNavigationReleaseReady = true
 
     static func supports(_ target: ApplicationTarget) -> Bool {
@@ -486,7 +486,7 @@ enum SwitchFailure: Error, Equatable, Sendable {
         case .chatGPTNotFrontmost: "Bring ChatGPT to the front first."
         case .targetChanged(let app): "The active \(app) window changed before switching finished."
         case .noFocusedWindow: "No focused app window was found."
-        case .claudeCodeSurfaceNotFound: "Open the Code tab with a Claude Code-enabled account first."
+        case .claudeCodeSurfaceNotFound: "Open Claude Desktop with either the Home/Chat composer or an idle Code session visible."
         case .cursorModelControlUnavailable: "Cursor model chip isn’t visible. Click the model name, then retry."
         case .cursorPickerDidNotOpen: "Cursor’s model menu didn’t open. Click the model chip, then retry."
         case .cursorMenuItemMissing(let value): "‘\(value)’ isn’t in Cursor’s open model menu."
