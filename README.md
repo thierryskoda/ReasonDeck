@@ -10,11 +10,11 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 ## Download
 
-### [Download ReasonDeck 0.1.0 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.1.0/ReasonDeck-0.1.0.dmg)
+### [Download ReasonDeck 0.2.0 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.2.0/ReasonDeck-0.2.0.dmg)
 
-Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.1.0)
+Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.2.0)
 
-Version 0.1.0 is a prerelease and supports ChatGPT. The current source is ahead of that build and also contains newer Claude Desktop, Cursor, and Antigravity work.
+Version 0.2.0 is a prerelease with model-and-effort shortcuts for ChatGPT, Claude Desktop Home/Chat, Cursor, and Antigravity. It also includes Cursor's **Next finished session** shortcut.
 
 ### Install
 
@@ -36,16 +36,14 @@ Official binaries are signed with Developer ID and notarized by Apple. Do not in
 
 On a first installation, the current source creates two editable starter shortcuts:
 
-| Shortcut | ChatGPT | Cursor | Antigravity |
-| --- | --- | --- | --- |
-| `⌘⇧1` economical | 5.6 Luna / High | Composer 2.5 Fast / High | Gemini 3.7 Flash / High |
-| `⌘⇧2` premium | 5.6 Sol / High | GPT-5.6 Sol / High | Gemini 3.1 Pro / High |
+| Shortcut | ChatGPT | Claude Desktop | Cursor | Antigravity |
+| --- | --- | --- | --- | --- |
+| `⌘⇧1` economical | 5.6 Luna / High | — | Composer 2.5 Fast / High | Gemini 3.7 Flash / High |
+| `⌘⇧2` premium | 5.6 Sol / High | — | GPT-5.6 Sol / High | Gemini 3.1 Pro / High |
 
 Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
-The current source enables Claude Desktop model switching and includes Cursor's **Next finished session** shortcut. Claude's Home/Chat composer passed signed live switching on Claude Desktop 1.34493.1 with a Free account; it works independently of the paid Code tab. Haiku 4.5 selects successfully, but Claude exposes its `Extended` mode instead of ReasonDeck's standard effort set, so a requested standard effort is truthfully reported as unavailable. The Code-specific path still requires a paid account and remains experimental until it passes a signed live switch. Neither change is part of the downloadable 0.1.0 build.
-
-Other adapter code in the development branch is experimental unless a release note explicitly includes it.
+Claude's Home/Chat composer passed signed live switching on Claude Desktop 1.34493.1 with a Free account; it works independently of the paid Code tab. Haiku 4.5 selects successfully, but Claude exposes its `Extended` mode instead of ReasonDeck's standard effort set, so a requested standard effort is truthfully reported as unavailable. The separate Code-tab path still requires a paid account and remains experimental until it passes a signed live switch.
 
 ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 
@@ -56,12 +54,13 @@ ChatGPT efforts currently recognized by source: Extra High, Medium, None, Light,
 - macOS 14 or later
 - The English ChatGPT Mac app (`com.openai.codex`)
 - The English Claude Desktop app (`com.anthropic.claudefordesktop`); a paid plan is required only for the separate Code tab
-- The English Cursor Mac app (`com.todesktop.230313mzl4w4u92`) when building the current source
+- The English Cursor Mac app (`com.todesktop.230313mzl4w4u92`)
+- The English Antigravity Mac app (`com.google.antigravity`)
 - Accessibility and Input Monitoring permission
 
 ChatGPT support expects a normal conversation with the composer visible and the native **Select model** command (`⌃⇧M`) available. Preview, sidebar, and task layouts are not supported targets.
 
-Cursor support expects an idle Agent or Chat composer with its model chip visible. The current development baseline covers Cursor 3.15.6 and 3.16.29 on macOS 26.5.1. Cursor's server-driven model list can change, so ReasonDeck accepts only exact labels it knows and fails closed on anything else.
+Cursor support expects an idle Agent or Chat composer with its model chip visible. The 0.2.0 baseline covers Cursor 3.15.6 and 3.16.29 on macOS 26.5.1. Cursor's server-driven model list can change, so ReasonDeck accepts only exact labels it knows and fails closed on anything else.
 
 Compilation and unit tests are not compatibility proof. Each supported app version needs a signed live check before it is claimed for a release.
 
@@ -70,7 +69,7 @@ Compilation and unit tests are not compatibility proof. Each supported app versi
 - No network implementation, analytics, or account credentials.
 - No collection, storage, logging, or transmission of chat or editor content.
 - Shortcuts capture the frontmost supported process, then verify its focused window before switching.
-- ChatGPT, Claude Desktop, and Cursor recheck that target before actions and verify the final selection.
+- ChatGPT, Claude Desktop, Cursor, and Antigravity recheck that target before actions and verify the final selection.
 - Model and effort labels are closed sets in source.
 - No fixed screen coordinates.
 

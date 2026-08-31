@@ -2,7 +2,13 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
-## Unreleased
+## 0.2.0 - 2026-08-31
+
+### Added
+
+- Add exact model-and-effort switching for Claude Desktop Home/Chat, Cursor Agent/Chat, and Antigravity alongside ChatGPT.
+- Add a Cursor-only **Next finished session** shortcut that advances only when finished-waiting state is observable.
+- Seed new installations with editable economical and premium shortcuts; existing saved configurations remain unchanged.
 
 ### Changed
 
@@ -13,6 +19,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 - Anchor Cursor discovery to the active composer and its owned two-stage parameters/model menus.
 - Add exact Grok 4.6 support while retaining Grok 4.5 for older Cursor catalogs.
 - Restore the exact previously focused ChatGPT composer after a model shortcut completes.
+- Keep the native ChatGPT picker open between verified phases so an effort-only shortcut does not reselect the current model.
 
 ### Safety
 
@@ -23,9 +30,10 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 - Keep action targets coupled to the AX snapshot that produced them, and wait for Cursor's post-selection composer state to stabilize before reopening parameters.
 - Keep Cursor editor and transcript values outside Accessibility reads and logs.
 
-### Gated
+### Known limitations
 
-- Cursor finished-session navigation and Claude Code switching remain gated until their signed live Accessibility reliability matrices pass.
+- Claude Desktop Home/Chat is supported. The separate paid Code-tab path remains experimental until it passes its own signed live switch.
+- Cursor and Antigravity expose server-driven labels; ReasonDeck changes nothing when an exact typed model, effort, or finished-session state is unavailable.
 
 ## 0.1.0 - 2026-08-06
 
