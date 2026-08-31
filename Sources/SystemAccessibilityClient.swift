@@ -27,13 +27,11 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         return outcome
     }
 
-    func observeSelectionTitle(invocation: HotkeyInvocation) async throws -> String {
+    func observeSelectionTitleLeavingPickerOpen(invocation: HotkeyInvocation) async throws -> String {
         let start = ContinuousClock().now
         defer { logElapsed("observe-native-picker", since: start) }
         let context = try await openNativePicker(invocation: invocation)
-        let title = "\(context.picker.model.rawValue) \(context.picker.effort.rawValue)"
-        try? dismissNativePicker(context, invocation: invocation)
-        return title
+        return "\(context.picker.model.rawValue) \(context.picker.effort.rawValue)"
     }
 
     func selectModel(_ model: ChatGPTModel, invocation: HotkeyInvocation) async throws -> String {
@@ -53,7 +51,7 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         }
         try TrustedTargetAction.press(item, invocation: invocation)
         try? await Task.sleep(for: .milliseconds(50))
-        return try await observeSelectionTitle(invocation: invocation)
+        return try await observeSelectionTitleLeavingPickerOpen(invocation: invocation)
     }
 
     func selectEffort(_ effort: ChatGPTReasoningEffort, invocation: HotkeyInvocation) async throws -> String {
@@ -73,32 +71,27 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         }
         try TrustedTargetAction.press(item, invocation: invocation)
         try? await Task.sleep(for: .milliseconds(50))
-        return try await observeSelectionTitle(invocation: invocation)
+        return try await observeSelectionTitleLeavingPickerOpen(invocation: invocation)
     }
 
     func restoreComposerFocus(invocation: HotkeyInvocation) async -> Bool {
         let start = ContinuousClock().now
         defer { logElapsed("restore-composer-focus", since: start) }
-        guard let target = composerFocusTarget else {
-            logger.info("Composer focus was not captured before the ChatGPT transaction")
-            return false
-        }
-
         do {
             var context = try await resolveContext(invocation: invocation)
-            guard isDescendant(target.element, of: context.window) else {
-                logger.info("Captured composer focus target is no longer in the focused ChatGPT window")
-                return false
-            }
-
             if let picker = nativePicker(in: context.window) {
                 try dismissNativePicker(picker, invocation: invocation)
                 try await Task.sleep(for: .milliseconds(50))
                 context = try await resolveContext(invocation: invocation)
-                guard isDescendant(target.element, of: context.window) else {
-                    logger.info("Captured composer focus target changed while dismissing the native picker")
-                    return false
-                }
+            }
+
+            guard let target = composerFocusTarget else {
+                logger.info("Composer focus was not captured before the ChatGPT transaction")
+                return false
+            }
+            guard isDescendant(target.element, of: context.window) else {
+                logger.info("Captured composer focus target changed before focus restoration")
+                return false
             }
 
             try TrustedTargetAction.validate(invocation)

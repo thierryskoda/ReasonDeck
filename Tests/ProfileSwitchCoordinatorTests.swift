@@ -29,7 +29,7 @@ private actor FakeChatGPTPickerTransport: ChatGPTPickerTransport {
         self.effortTitle = effortTitle
     }
 
-    func observeSelectionTitle(invocation: HotkeyInvocation) throws -> String {
+    func observeSelectionTitleLeavingPickerOpen(invocation: HotkeyInvocation) throws -> String {
         observationCalls += 1
         guard !observedTitles.isEmpty else {
             throw SwitchFailure.accessibility("Unexpected duplicate observation")
@@ -51,6 +51,27 @@ private actor FakeChatGPTPickerTransport: ChatGPTPickerTransport {
         focusRestorationCalls += 1
         return true
     }
+}
+
+@Test func chatGPTTransactionSkipsModelSelectionWhenOnlyEffortDiffers() async {
+    let transport = FakeChatGPTPickerTransport(
+        observedTitles: ["5.6 Sol High"],
+        modelTitle: "Model selection should be skipped",
+        effortTitle: "5.6 Sol Extra High"
+    )
+    let selection = ChatGPTSelection(model: .sol56, effort: .extraHigh)
+
+    let outcome = await ChatGPTTransaction.apply(
+        selection,
+        invocation: chatGPTInvocation,
+        using: transport
+    )
+
+    #expect(outcome == .applied(model: .sol56, effort: .extraHigh, observedTitle: "5.6 Sol Extra High"))
+    #expect(await transport.observationCalls == 1)
+    #expect(await transport.modelCalls == 0)
+    #expect(await transport.effortCalls == 1)
+    #expect(await transport.focusRestorationCalls == 1)
 }
 
 private let chatGPTInvocation = HotkeyInvocation(

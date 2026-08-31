@@ -17,9 +17,12 @@ protocol ChatGPTUIClient: Sendable {
 /// orchestration separate makes the number and order of visible picker
 /// interactions deterministic and testable.
 protocol ChatGPTPickerTransport: Sendable {
-    func observeSelectionTitle(invocation: HotkeyInvocation) async throws -> String
+    /// Leaves the verified picker visible so the next phase can reacquire it
+    /// from a fresh snapshot without another open-and-dismiss cycle.
+    func observeSelectionTitleLeavingPickerOpen(invocation: HotkeyInvocation) async throws -> String
     func selectModel(_ model: ChatGPTModel, invocation: HotkeyInvocation) async throws -> String
     func selectEffort(_ effort: ChatGPTReasoningEffort, invocation: HotkeyInvocation) async throws -> String
+    /// Always dismisses a still-verified picker; focus restoration is best-effort.
     func restoreComposerFocus(invocation: HotkeyInvocation) async -> Bool
 }
 
@@ -40,7 +43,7 @@ enum ChatGPTTransaction {
         using transport: any ChatGPTPickerTransport
     ) async -> ChatGPTApplyOutcome {
         do {
-            let initial = try await transport.observeSelectionTitle(invocation: invocation)
+            let initial = try await transport.observeSelectionTitleLeavingPickerOpen(invocation: invocation)
             if selection.matches(title: initial) { return .alreadyApplied(observedTitle: initial) }
 
             let afterModel: String
