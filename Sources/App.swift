@@ -82,7 +82,7 @@ final class MenuBarViewModel {
 
     func apply(_ id: UUID) {
         guard let invocation = currentInvocation(for: id) else {
-            status = .failure("Bring ChatGPT, Claude Desktop, or Cursor to the front with an active window.")
+            status = .failure("Bring ChatGPT, Claude Desktop, Cursor, or Antigravity to the front with an active window.")
             NSSound.beep()
             return
         }
@@ -110,7 +110,7 @@ final class MenuBarViewModel {
                 }
                 try? await Task.sleep(for: .milliseconds(20))
             }
-            status = .failure("Bring ChatGPT, Claude Desktop, or Cursor to the front with an active window.")
+            status = .failure("Bring ChatGPT, Claude Desktop, Cursor, or Antigravity to the front with an active window.")
             NSSound.beep()
         }
     }
@@ -346,7 +346,7 @@ struct MenuBarContent: View {
             Button("Open Settings…") { model.openSettings() }
             Divider()
         } else if model.permissionState == .accessibilityRequired {
-            Text("ReasonDeck needs Accessibility permission to select model-menu controls. It only inspects the active ChatGPT, Claude Desktop, or Cursor window.")
+            Text("ReasonDeck needs Accessibility permission to select model-menu controls. It only inspects the active ChatGPT, Claude Desktop, Cursor, or Antigravity window.")
             Button("Allow Accessibility…") { model.readiness.requestAccessibility() }
             Divider()
         } else if model.permissionState == .inputMonitoringRequired {
