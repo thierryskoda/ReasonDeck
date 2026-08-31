@@ -80,7 +80,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 ## Troubleshooting
 
 - **Permissions are required:** Use the matching **Allow** action in ReasonDeck Settings, enable the installed app in System Settings, then return to ReasonDeck.
-- **Hotkeys do not respond:** Confirm Input Monitoring is enabled. ReasonDeck retries its listener when the app becomes active again; relaunch once if macOS asks.
+- **Hotkeys do not respond:** Confirm ReasonDeck appears and is enabled in **System Settings > Privacy & Security > Input Monitoring**. Use **Allow Input Monitoring…** in ReasonDeck if the list has no ReasonDeck entry, then choose **Quit & Reopen** when macOS asks.
 - **Only the model changes:** The requested effort was unavailable or could not be verified. ReasonDeck reports a partial result instead of rolling the model back.
 - **Claude Desktop's controls cannot be found:** On Home, select Chat and leave the composer visible. For Claude Code, open an idle Code session on a paid plan.
 - **A shortcut will not save:** Include Command, Option, or Control. Escape cancels recording, unmodified Delete clears it, and duplicate combinations are rejected.

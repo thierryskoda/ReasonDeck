@@ -46,3 +46,16 @@ import Testing
 
     #expect(snapshot.state == .ready)
 }
+
+@Test func aRunningListenerDoesNotReplaceInputMonitoringAuthorization() {
+    // Regression: macOS can create the event tap with Accessibility alone, but it
+    // will not deliver real shortcuts until Input Monitoring is explicitly granted.
+    let snapshot = PermissionController.snapshot(
+        accessibilityGranted: true,
+        inputMonitoringPreflightGranted: false,
+        eventTapAvailable: true
+    )
+
+    #expect(!snapshot.inputMonitoringGranted)
+    #expect(snapshot.state == .inputMonitoringRequired)
+}

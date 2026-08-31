@@ -12,6 +12,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ### Changed
 
+- Report Input Monitoring as granted only when macOS confirms that specific privacy permission; a listener created with Accessibility alone no longer produces a false-ready status.
 - Keep slow Accessibility window discovery outside the global hotkey callback so macOS does not intermittently disable the shortcut listener.
 - Split model switching into independent ChatGPT, Cursor, Claude Code, and Cursor-navigation adapter transactions behind one typed dispatcher.
 - Rebuild ChatGPT switching as an atomic composer-bound transaction with a fresh snapshot after each UI mutation.

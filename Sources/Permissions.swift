@@ -132,9 +132,24 @@ enum PermissionController {
     }
 
     static func snapshot(eventTapAvailable: Bool) -> PermissionSnapshot {
-        PermissionSnapshot(
+        snapshot(
             accessibilityGranted: AXIsProcessTrusted(),
-            inputMonitoringGranted: eventTapAvailable || CGPreflightListenEventAccess()
+            inputMonitoringPreflightGranted: CGPreflightListenEventAccess(),
+            eventTapAvailable: eventTapAvailable
+        )
+    }
+
+    static func snapshot(
+        accessibilityGranted: Bool,
+        inputMonitoringPreflightGranted: Bool,
+        eventTapAvailable _: Bool
+    ) -> PermissionSnapshot {
+        PermissionSnapshot(
+            accessibilityGranted: accessibilityGranted,
+            // Creating an event tap can succeed with Accessibility alone while macOS still
+            // withholds real keyboard events. Only the dedicated preflight may report this
+            // privacy grant as ready.
+            inputMonitoringGranted: inputMonitoringPreflightGranted
         )
     }
 
