@@ -12,7 +12,11 @@ permissions:
 
 jobs:
   test-and-build:
-    runs-on: macos-15
+    runs-on: macos-26
+    env:
+      # Keep CI on the Swift generation used for signed releases. Xcode 16.4's
+      # region-isolation checker rejects the Accessibility traversal closures.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - name: Check out source
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
