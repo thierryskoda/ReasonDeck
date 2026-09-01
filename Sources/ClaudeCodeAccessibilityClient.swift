@@ -207,7 +207,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
 
     func selectModel(_ model: ClaudeCodeModel, invocation: HotkeyInvocation) async throws -> String {
         try await prepareWebAccessibility(invocation: invocation)
-        switch try surface(invocation: invocation) {
+        switch try await surface(invocation: invocation) {
         case .chat:
             return try await chooseChatModel(model, invocation: invocation)
         case .code:
@@ -217,7 +217,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
 
     func selectEffort(_ effort: ClaudeCodeEffort, invocation: HotkeyInvocation) async throws -> String {
         try await prepareWebAccessibility(invocation: invocation)
-        switch try surface(invocation: invocation) {
+        switch try await surface(invocation: invocation) {
         case .chat:
             return try await chooseChatEffort(effort, invocation: invocation)
         case .code:
@@ -289,20 +289,71 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         let nodes: [RawNode]
     }
 
-    private func surface(invocation: HotkeyInvocation) throws -> Surface {
-        try validate(invocation, requiresCodeSurface: false)
-        if try chatComposer(invocation: invocation) != nil { return .chat }
-        if try codeComposer(invocation: invocation) != nil { return .code }
-        throw SwitchFailure.claudeCodeSurfaceNotFound
+    // Chromium's accessibility tree can briefly publish some composer elements
+    // (e.g. the model/effort popups) before others (e.g. the prompt input),
+    // right after a window gains focus or re-renders. A single-shot scan can
+    // catch that half-published state and read it as an ambiguous surface.
+    // Poll within the same deadline used elsewhere in this file instead of
+    // failing on the first inconsistent snapshot.
+    private func surface(invocation: HotkeyInvocation) async throws -> Surface {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: deadline)
+        var lastError: Error = SwitchFailure.claudeCodeSurfaceNotFound
+        while true {
+            try validate(invocation, requiresCodeSurface: false)
+            do {
+                if try chatComposer(invocation: invocation) != nil { return .chat }
+            } catch {
+                lastError = error
+            }
+            do {
+                if try codeComposer(invocation: invocation) != nil { return .code }
+            } catch {
+                lastError = error
+            }
+            guard clock.now < end else { throw lastError }
+            try await Task.sleep(for: pollInterval)
+        }
+    }
+
+    // Same rationale as `surface()`: don't fail an operation that already
+    // knows which surface it's on just because one scan caught the AX tree
+    // mid-sync.
+    private func waitForInitialChatComposer(invocation: HotkeyInvocation) async throws -> ChatComposer {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: deadline)
+        var lastError: Error = SwitchFailure.claudeCodeSurfaceNotFound
+        while true {
+            do {
+                if let composer = try chatComposer(invocation: invocation) { return composer }
+            } catch {
+                lastError = error
+            }
+            guard clock.now < end else { throw lastError }
+            try await Task.sleep(for: pollInterval)
+        }
+    }
+
+    private func waitForInitialCodeComposer(invocation: HotkeyInvocation) async throws -> CodeComposer {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: deadline)
+        var lastError: Error = SwitchFailure.claudeCodeSurfaceNotFound
+        while true {
+            do {
+                if let composer = try codeComposer(invocation: invocation) { return composer }
+            } catch {
+                lastError = error
+            }
+            guard clock.now < end else { throw lastError }
+            try await Task.sleep(for: pollInterval)
+        }
     }
 
     private func chooseChatModel(
         _ model: ClaudeCodeModel,
         invocation: HotkeyInvocation
     ) async throws -> String {
-        guard let initial = try chatComposer(invocation: invocation) else {
-            throw SwitchFailure.claudeCodeSurfaceNotFound
-        }
+        let initial = try await waitForInitialChatComposer(invocation: invocation)
         if initial.model == model { return model.rawValue }
 
         do {
@@ -333,9 +384,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         _ effort: ClaudeCodeEffort,
         invocation: HotkeyInvocation
     ) async throws -> String {
-        guard let initial = try chatComposer(invocation: invocation) else {
-            throw SwitchFailure.claudeCodeSurfaceNotFound
-        }
+        let initial = try await waitForInitialChatComposer(invocation: invocation)
         if initial.effort == effort { return effort.rawValue }
         let desiredLabels = ClaudeChatLabels.pickerRowLabels(for: effort)
         guard !desiredLabels.isEmpty,
@@ -973,9 +1022,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         _ model: ClaudeCodeModel,
         invocation: HotkeyInvocation
     ) async throws -> String {
-        guard let initial = try codeComposer(invocation: invocation) else {
-            throw SwitchFailure.claudeCodeSurfaceNotFound
-        }
+        let initial = try await waitForInitialCodeComposer(invocation: invocation)
         if initial.model == model { return model.rawValue }
 
         var originalPointer: CGPoint?
@@ -1010,9 +1057,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         guard let targetValue = ClaudeCodeLabels.sliderValue(for: effort) else {
             throw SwitchFailure.effortUnavailable(effort.rawValue)
         }
-        guard let initial = try codeComposer(invocation: invocation) else {
-            throw SwitchFailure.claudeCodeSurfaceNotFound
-        }
+        let initial = try await waitForInitialCodeComposer(invocation: invocation)
         if initial.effort == effort { return effort.rawValue }
 
         do {
