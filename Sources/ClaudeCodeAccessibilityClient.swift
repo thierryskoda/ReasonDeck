@@ -10,6 +10,9 @@ enum ClaudeChatLabels {
         ("High", .high),
         ("Extra", .extraHigh),
         ("Max", .max),
+        // Claude can repeat the cohort-specific usage copy in the closed composer
+        // title. Allowlist the full observed title instead of accepting a prefix.
+        ("Max 3.5× or more usage", .max),
     ]
 
     private static let pickerModels: [String: ClaudeCodeModel] = [

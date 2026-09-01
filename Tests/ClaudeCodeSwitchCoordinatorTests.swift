@@ -189,8 +189,13 @@ private let claudeInvocation = HotkeyInvocation(
 @Test func claudeChatMaxEffortAcceptsOnlyKnownExactRowVariants() {
     let expectedLabels: Set<String> = ["Max", "Max 3.5× or more usage"]
 
+    #expect(
+        ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 3.5× or more usage")
+            == ClaudeCodeSelection(model: .sonnet5, effort: .max)
+    )
     #expect(ClaudeChatLabels.effort(inPickerRow: "Max") == .max)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Max 3.5× or more usage") == .max)
     #expect(ClaudeChatLabels.pickerRowLabels(for: .max) == expectedLabels)
+    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 2× usage") == nil)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Max 2× usage") == nil)
 }
