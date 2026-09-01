@@ -7,6 +7,8 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 ### Fixed
 
 - Retry Claude Desktop surface and composer discovery while Chromium finishes publishing its Accessibility tree, preventing transient shortcut failures immediately after focus changes or interface updates.
+- Fall back to the freshly verified Chat/Cowork composer geometry when Chromium reports successful Accessibility menu actions but leaves the model picker closed.
+- Focus the paid layout's exact `More models` row and open its owned submenu with native Right Arrow, then select the exact verified model-row geometry with empty mouse flags and without the keyboard event tap's sentinel. When Chromium keeps the owned menus open after using the first click only for focus, let its responder settle, then reacquire the exact row before a bounded activation click.
 
 ### Safety
 

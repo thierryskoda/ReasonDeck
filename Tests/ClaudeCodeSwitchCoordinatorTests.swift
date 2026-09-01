@@ -173,6 +173,12 @@ private let claudeInvocation = HotkeyInvocation(
         ) == .haiku45
     )
     #expect(
+        ClaudeChatLabels.model(inPickerRow: "Fable 5 Requires usage credits") == .fable5
+    )
+    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5") == .opus5)
+    #expect(ClaudeChatLabels.model(inPickerRow: "Sonnet 5") == .sonnet5)
+    #expect(ClaudeChatLabels.model(inPickerRow: "Haiku 4.5") == .haiku45)
+    #expect(
         ClaudeChatLabels.model(
             inPickerRow: "Opus 5 Pro For complex tasks Upgrade"
         ) == nil

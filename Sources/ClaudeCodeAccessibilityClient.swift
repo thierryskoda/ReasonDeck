@@ -18,9 +18,13 @@ enum ClaudeChatLabels {
 
     private static let pickerModels: [String: ClaudeCodeModel] = [
         "Fable 5 Requires usage credits For your toughest challenges": .fable5,
+        "Fable 5 Requires usage credits": .fable5,
         "Opus 5 For complex tasks": .opus5,
+        "Opus 5": .opus5,
         "Sonnet 5 Most efficient for everyday tasks": .sonnet5,
+        "Sonnet 5": .sonnet5,
         "Haiku 4.5 Fastest for quick answers": .haiku45,
+        "Haiku 4.5": .haiku45,
     ]
 
     private static let pickerEfforts: [(label: String, effort: ClaudeCodeEffort)] = [
@@ -241,7 +245,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         )
         accessibilityPreparationAttemptedPID = invocation.pid
         if enhancedResult == .success {
-            try await Task.sleep(for: .milliseconds(150))
+            try await Task.sleep(for: .milliseconds(500))
         } else {
             logger.error("Could not enable Claude web accessibility manualError=\(manualResult.rawValue, privacy: .public) enhancedError=\(enhancedResult.rawValue, privacy: .public)")
         }
@@ -356,8 +360,56 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         let initial = try await waitForInitialChatComposer(invocation: invocation)
         if initial.model == model { return model.rawValue }
 
+        var originalPointer: CGPoint?
+        var diagnosticPhase = "opening_root"
+        defer { TrustedTargetAction.restorePointer(to: originalPointer) }
         do {
-            let menu = try await openChatModelMenu(invocation: invocation)
+            _ = try await openChatModelMenu(invocation: invocation)
+            // Claude replaces parts of the Chromium AX subtree shortly after
+            // opening this verified menu. Refresh before targeting a model row.
+            try await Task.sleep(for: .milliseconds(500))
+            try validate(invocation, requiresCodeSurface: false)
+            guard let rootMenu = try await waitForChatRootMenu(
+                title: initial.title,
+                currentModel: initial.model,
+                timeout: deadline,
+                invocation: invocation
+            ) else {
+                throw SwitchFailure.accessibility("Claude Chat model menu did not stabilize.")
+            }
+            diagnosticPhase = "opening_nested"
+            let moreModels = rootMenu.nodes.filter {
+                $0.visible
+                    && isDescendant($0.id, of: rootMenu.root.id, in: rootMenu.nodes)
+                    && controlLabels($0.element).contains("More models")
+                    && validFrame($0.frame)
+            }
+            guard let trigger = uniqueRow(moreModels) else {
+                throw SwitchFailure.accessibility("Claude Chat More models row was unavailable.")
+            }
+            // A standalone hover rebuilds this Chromium row before mouse-down.
+            // Deliver directly to the snapshot-verified point instead.
+            originalPointer = try clickMenuRow(
+                trigger,
+                in: rootMenu,
+                prepositionPointer: false,
+                invocation: invocation
+            )
+            // Paid Chromium focuses this exact submenu trigger without opening it.
+            // Native Right Arrow performs the owned-menu transition deterministically.
+            try TrustedTargetAction.postFocusedKey(
+                keyCode: 124,
+                flags: [],
+                invocation: invocation
+            )
+            guard let menu = try await waitForModelMenu(
+                title: "More models",
+                timeout: deadline,
+                invocation: invocation
+            ) else {
+                throw SwitchFailure.accessibility("Claude Chat More models menu did not open.")
+            }
+            diagnosticPhase = "focusing_model"
             let rows = modelRows(in: menu)
             guard Set(rows.map(\.model)).count >= 2 else {
                 throw SwitchFailure.accessibility("Claude Chat model menu could not be verified.")
@@ -365,9 +417,43 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             guard let row = uniqueRow(rows.filter { $0.model == model }.map(\.node)) else {
                 throw SwitchFailure.modelUnavailable(model.rawValue)
             }
-            let originalPointer = try performMenuRow(row, in: menu, invocation: invocation)
-            defer { TrustedTargetAction.restorePointer(to: originalPointer) }
+            // Paid Chromium rows can advertise AXPress while treating it as a
+            // focus-only no-op. This row is already exact-label, owned-menu,
+            // and geometry verified, so use the same bounded click required by
+            // the nested effort trigger.
+            _ = try clickMenuRow(
+                row,
+                in: menu,
+                prepositionPointer: false,
+                invocation: invocation
+            )
+            try await Task.sleep(for: .milliseconds(500))
+            diagnosticPhase = "activating_model"
+            try validate(invocation, requiresCodeSurface: false)
+            if !verifiedChatMenuRoots(invocation: invocation).isEmpty {
+                guard let refreshedMenu = try await waitForModelMenu(
+                    title: "More models",
+                    timeout: .milliseconds(350),
+                    invocation: invocation
+                ), let refreshedRow = uniqueRow(
+                    modelRows(in: refreshedMenu)
+                        .filter { $0.model == model }
+                        .map(\.node)
+                ) else {
+                    throw SwitchFailure.modelUnavailable(model.rawValue)
+                }
+                // Chromium uses the first click to focus a non-default nested row.
+                // Reacquire it before the second click that activates selection.
+                _ = try clickMenuRow(
+                    refreshedRow,
+                    in: refreshedMenu,
+                    prepositionPointer: false,
+                    invocation: invocation
+                )
+            }
+            diagnosticPhase = "closing_menus"
             try await waitForChatMenusToClose(invocation: invocation)
+            diagnosticPhase = "verifying_model"
             _ = try await waitForChatComposer(
                 model: model,
                 effort: nil,
@@ -375,6 +461,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             )
             return model.rawValue
         } catch {
+            logger.error("chat_model_failure phase=\(diagnosticPhase, privacy: .public)")
             try? await dismissVerifiedChatMenuIfNeeded(invocation: invocation)
             throw error
         }
@@ -401,8 +488,9 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             // subtree. Let it settle and refresh every element reference.
             try await Task.sleep(for: .milliseconds(500))
             try validate(invocation, requiresCodeSurface: false)
-            guard let modelMenu = try await waitForModelMenu(
+            guard let modelMenu = try await waitForChatRootMenu(
                 title: initial.title,
+                currentModel: initial.model,
                 timeout: deadline,
                 invocation: invocation
             ) else {
@@ -459,21 +547,63 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         else { throw SwitchFailure.accessibility("A Claude Chat model menu was already open.") }
 
         try TrustedTargetAction.press(composer.popup, invocation: invocation)
-        if let menu = try await waitForModelMenu(
+        if let menu = try await waitForChatRootMenu(
             title: composer.title,
+            currentModel: composer.model,
             timeout: .milliseconds(350),
             invocation: invocation
         ) { return menu }
 
-        let actionNames = actions(composer.popup)
-        if actionNames.contains(kAXShowMenuAction as String) {
-            try TrustedTargetAction.showMenu(composer.popup, invocation: invocation)
-        } else if let popupFrame = AXWindowIdentity.frame(composer.popup) {
-            let pointer = try TrustedTargetAction.click(frame: popupFrame, invocation: invocation)
-            TrustedTargetAction.restorePointer(to: pointer)
+        // Chromium can publish the owned menu container before its exact rows.
+        // Do not send another open action to that already-open control; let the
+        // verified container finish populating within the normal deadline.
+        if !verifiedChatMenuRoots(invocation: invocation).isEmpty {
+            guard let menu = try await waitForChatRootMenu(
+                title: composer.title,
+                currentModel: composer.model,
+                timeout: deadline,
+                invocation: invocation
+            ) else {
+                throw SwitchFailure.accessibility("Claude Chat model menu did not stabilize.")
+            }
+            return menu
         }
-        guard let menu = try await waitForModelMenu(
+
+        let actionComposer = try await waitForInitialChatComposer(invocation: invocation)
+        guard actionComposer.title == composer.title else {
+            throw SwitchFailure.verificationMismatch(
+                expected: composer.title,
+                observed: actionComposer.title
+            )
+        }
+        let actionNames = actions(actionComposer.popup)
+        if actionNames.contains(kAXShowMenuAction as String) {
+            try TrustedTargetAction.showMenu(actionComposer.popup, invocation: invocation)
+            if let menu = try await waitForChatRootMenu(
+                title: composer.title,
+                currentModel: composer.model,
+                timeout: deadline,
+                invocation: invocation
+            ) { return menu }
+
+            // Chromium can advertise successful AXPress and AXShowMenu actions
+            // while leaving this exact popup closed. Use its fresh verified frame
+            // only after both actions have produced no observable owned menu.
+            guard verifiedChatMenuRoots(invocation: invocation).isEmpty else {
+                throw SwitchFailure.accessibility("Claude Chat model menu did not stabilize.")
+            }
+        }
+        let clickComposer = try await waitForInitialChatComposer(invocation: invocation)
+        guard clickComposer.title == composer.title,
+              let popupFrame = AXWindowIdentity.frame(clickComposer.popup)
+        else {
+            throw SwitchFailure.accessibility("Claude Chat model control geometry was unavailable.")
+        }
+        let pointer = try TrustedTargetAction.click(frame: popupFrame, invocation: invocation)
+        TrustedTargetAction.restorePointer(to: pointer)
+        guard let menu = try await waitForChatRootMenu(
             title: composer.title,
+            currentModel: composer.model,
             timeout: deadline,
             invocation: invocation
         ) else { throw SwitchFailure.accessibility("Claude Chat model menu did not open.") }
@@ -487,6 +617,24 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
     ) async throws -> LiveMenu? {
         try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
             Set(self.modelRows(in: menu).map(\.model)).count >= 2
+        }
+    }
+
+    private func waitForChatRootMenu(
+        title: String,
+        currentModel: ClaudeCodeModel,
+        timeout: Duration,
+        invocation: HotkeyInvocation
+    ) async throws -> LiveMenu? {
+        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+            let moreModels = menu.nodes.filter {
+                $0.visible
+                    && self.isDescendant($0.id, of: menu.root.id, in: menu.nodes)
+                    && self.controlLabels($0.element).contains("More models")
+                    && self.validFrame($0.frame)
+            }
+            return self.uniqueRow(moreModels) != nil
+                && self.modelRows(in: menu).contains(where: { $0.model == currentModel })
         }
     }
 
@@ -674,7 +822,13 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
                   controlLabels(node.element).contains(title),
                   validFrame(node.frame)
             else { return nil }
-            return LiveMenu(root: node, nodes: nodes)
+            // Chromium can expose the same nested-menu rows through both the
+            // window overlay and the menu. The window-wide breadth-first scan
+            // may encounter the overlay path first, which makes a genuinely
+            // owned row look unrelated. Re-root the bounded snapshot at the
+            // exact verified menu so descendant checks retain menu ownership.
+            let menuNodes = rawNodes(root: node.element, maxDepth: 12, maxNodes: 500)
+            return LiveMenu(root: node, nodes: menuNodes)
         }
     }
 
@@ -850,6 +1004,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             guard node.visible, node.role == kAXMenuRole as String else { return false }
             return controlLabels(node.element).contains { label in
                 ClaudeChatLabels.model(inComposerTitle: label) != nil
+                    || label == "More models"
                     || ClaudeChatLabels.pickerLabel(for: .low).map { label == "Effort \($0)" } == true
                     || ClaudeChatLabels.pickerLabel(for: .medium).map { label == "Effort \($0)" } == true
                     || ClaudeChatLabels.pickerLabel(for: .high).map { label == "Effort \($0)" } == true
@@ -898,6 +1053,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
     private func clickMenuRow(
         _ row: RawNode,
         in menu: LiveMenu,
+        prepositionPointer: Bool = true,
         invocation: HotkeyInvocation
     ) throws -> CGPoint? {
         guard let rowFrame = row.frame,
@@ -911,7 +1067,8 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         }
         return try TrustedTargetAction.click(
             frame: CGRect(x: point.x - 1, y: point.y - 1, width: 2, height: 2),
-            invocation: invocation
+            invocation: invocation,
+            prepositionPointer: prepositionPointer
         )
     }
 

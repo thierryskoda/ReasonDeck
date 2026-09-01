@@ -204,7 +204,11 @@ enum TrustedTargetAction {
         try validate(invocation)
     }
 
-    static func click(frame: CGRect, invocation: HotkeyInvocation) throws -> CGPoint? {
+    static func click(
+        frame: CGRect,
+        invocation: HotkeyInvocation,
+        prepositionPointer: Bool = true
+    ) throws -> CGPoint? {
         try validate(invocation)
         guard frame.width > 0, frame.height > 0,
               frame.width <= 1_000, frame.height <= 200,
@@ -239,11 +243,14 @@ enum TrustedTargetAction {
             mouseButton: .left
         ) else { throw SwitchFailure.accessibility("Could not create a mouse event.") }
 
-        for event in [move, down, up] {
-            event.setIntegerValueField(.eventSourceUserData, value: SyntheticEventMarker.value)
+        // The hotkey tap subscribes only to keyboard events, so mouse delivery
+        // cannot recurse. Chromium ignores marked or shortcut-modified mouse-down
+        // events, so deliver these verified pointer actions with empty flags.
+        for event in [move, down, up] { event.flags = [] }
+        if prepositionPointer {
+            move.post(tap: .cghidEventTap)
+            try validate(invocation)
         }
-        move.post(tap: .cghidEventTap)
-        try validate(invocation)
         down.post(tap: .cghidEventTap)
         up.post(tap: .cghidEventTap)
         // Cursor may temporarily unpublish its focused AX window while rebuilding the
@@ -261,7 +268,7 @@ enum TrustedTargetAction {
                   mouseCursorPosition: point,
                   mouseButton: .left
               ) else { return }
-        restore.setIntegerValueField(.eventSourceUserData, value: SyntheticEventMarker.value)
+        restore.flags = []
         restore.post(tap: .cghidEventTap)
     }
 
