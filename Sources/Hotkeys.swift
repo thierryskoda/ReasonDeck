@@ -144,6 +144,27 @@ enum TrustedTargetAction {
         try validate(invocation)
     }
 
+    static func stepSlider(
+        _ element: AXUIElement,
+        increment: Bool,
+        invocation: HotkeyInvocation
+    ) throws {
+        try validate(invocation)
+        let role: String? = axValue(element, kAXRoleAttribute)
+        let action = increment ? kAXIncrementAction : kAXDecrementAction
+        var actionValues: CFArray?
+        let actionNames = AXUIElementCopyActionNames(element, &actionValues) == .success
+            ? (actionValues as? [String] ?? []) : []
+        guard role == kAXSliderRole as String, actionNames.contains(action as String) else {
+            throw SwitchFailure.accessibility("Claude Code effort slider action was unavailable.")
+        }
+        let error = AXUIElementPerformAction(element, action as CFString)
+        guard error == .success else {
+            throw SwitchFailure.accessibility("Claude Code effort slider error \(error.rawValue)")
+        }
+        try validate(invocation)
+    }
+
     static func postKey(
         keyCode: CGKeyCode,
         flags: CGEventFlags,

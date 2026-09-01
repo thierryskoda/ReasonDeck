@@ -2,6 +2,21 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.2.2 - 2026-08-31
+
+### Fixed
+
+- Support Claude Desktop's paid Chat and Cowork model menu, including exact Fable 5, Opus 5, paid Medium/High defaults, and paid Max usage-copy variants.
+- Open Chat/Cowork's nested effort menu through the exact verified row geometry when Chromium advertises an `AXPress` action that only focuses the row.
+- Recognize Claude's selected Code tab when Accessibility exposes radio value `1` instead of `AXSelected`.
+- Replace Claude Code's obsolete keyboard-menu path with its current exact model popup and five-step effort slider.
+
+### Safety
+
+- Bind Claude Code switching to one visible Prompt composer and its structurally related model and effort controls.
+- Require the Code effort slider's numeric value and exact description to agree at every bounded step, then verify the closed composer state.
+- Preserve frontmost-process and focused-window revalidation before every Accessibility, pointer, and slider action.
+
 ## 0.2.1 - 2026-08-31
 
 ### Fixed

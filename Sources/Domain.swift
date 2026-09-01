@@ -486,7 +486,7 @@ enum SwitchFailure: Error, Equatable, Sendable {
         case .chatGPTNotFrontmost: "Bring ChatGPT to the front first."
         case .targetChanged(let app): "The active \(app) window changed before switching finished."
         case .noFocusedWindow: "No focused app window was found."
-        case .claudeCodeSurfaceNotFound: "Open Claude Desktop with either the Home/Chat composer or an idle Code session visible."
+        case .claudeCodeSurfaceNotFound: "Open Claude Desktop with a visible Chat/Cowork composer or an idle Code Prompt composer."
         case .cursorModelControlUnavailable: "Cursor model chip isn’t visible. Click the model name, then retry."
         case .cursorPickerDidNotOpen: "Cursor’s model menu didn’t open. Click the model chip, then retry."
         case .cursorMenuItemMissing(let value): "‘\(value)’ isn’t in Cursor’s open model menu."

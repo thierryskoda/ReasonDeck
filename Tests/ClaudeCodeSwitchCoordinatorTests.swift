@@ -158,6 +158,12 @@ private let claudeInvocation = HotkeyInvocation(
 @Test func claudeChatPickerRowsUseExactClosedLabelsAndRejectUpgradeRows() {
     #expect(
         ClaudeChatLabels.model(
+            inPickerRow: "Fable 5 Requires usage credits For your toughest challenges"
+        ) == .fable5
+    )
+    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5 For complex tasks") == .opus5)
+    #expect(
+        ClaudeChatLabels.model(
             inPickerRow: "Sonnet 5 Most efficient for everyday tasks"
         ) == .sonnet5
     )
@@ -176,10 +182,12 @@ private let claudeInvocation = HotkeyInvocation(
 
 @Test func claudeChatEffortRowsMapExactChatLabelsToTypedEfforts() {
     #expect(ClaudeChatLabels.effort(inPickerRow: "Low") == .low)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Medium") == .medium)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Medium Default") == .medium)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "High Default") == .high)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Extra") == .extraHigh)
     #expect(ClaudeChatLabels.pickerLabel(for: .medium) == "Medium")
-    #expect(ClaudeChatLabels.pickerRowLabels(for: .medium) == ["Medium Default"])
+    #expect(ClaudeChatLabels.pickerRowLabels(for: .medium) == ["Medium", "Medium Default"])
     #expect(ClaudeChatLabels.pickerLabel(for: .extraHigh) == "Extra")
     #expect(ClaudeChatLabels.pickerRowLabels(for: .ultracode).isEmpty)
     #expect(ClaudeChatLabels.pickerLabel(for: .ultracode) == nil)
@@ -187,15 +195,45 @@ private let claudeInvocation = HotkeyInvocation(
 }
 
 @Test func claudeChatMaxEffortAcceptsOnlyKnownExactRowVariants() {
-    let expectedLabels: Set<String> = ["Max", "Max 3.5× or more usage"]
+    let expectedLabels: Set<String> = [
+        "Max",
+        "Max 2.5× or more usage",
+        "Max 3.5× or more usage",
+    ]
 
     #expect(
         ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 3.5× or more usage")
             == ClaudeCodeSelection(model: .sonnet5, effort: .max)
     )
+    #expect(
+        ClaudeChatLabels.selection(inComposerTitle: "Model: Opus 5 Max 2.5× or more usage")
+            == ClaudeCodeSelection(model: .opus5, effort: .max)
+    )
     #expect(ClaudeChatLabels.effort(inPickerRow: "Max") == .max)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Max 2.5× or more usage") == .max)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Max 3.5× or more usage") == .max)
     #expect(ClaudeChatLabels.pickerRowLabels(for: .max) == expectedLabels)
     #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 2× usage") == nil)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Max 2× usage") == nil)
+}
+
+@Test func claudeCodePaidModelRowsRemainExactAndClosed() {
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Opus 5") == .opus5)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5 Requires usage credits") == .fable5)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5") == .sonnet5)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5") == nil)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
+}
+
+@Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
+    #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
+    #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)
+    #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Auto") == nil)
+    #expect(ClaudeCodeLabels.sliderSelection(value: 0, description: "Low") == .low)
+    #expect(ClaudeCodeLabels.sliderSelection(value: 2, description: "High") == .high)
+    #expect(ClaudeCodeLabels.sliderSelection(value: 4, description: "Max") == .max)
+    #expect(ClaudeCodeLabels.sliderSelection(value: 4, description: "High") == nil)
+    #expect(ClaudeCodeLabels.sliderValue(for: .extraHigh) == 3)
+    #expect(ClaudeCodeLabels.sliderValue(for: .automatic) == nil)
+    #expect(ClaudeCodeLabels.composerTitle(for: .medium) == "Effort: Medium")
 }
