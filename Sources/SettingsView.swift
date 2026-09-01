@@ -453,14 +453,14 @@ struct SettingsView: View {
 
     private func claudeCodeModelBinding(for id: UUID) -> Binding<ClaudeCodeModel> {
         Binding(
-            get: { store.entry(id: id)?.claudeCode?.model ?? .opus5 },
+            get: { store.entry(id: id)?.claudeCode?.model ?? .sonnet5 },
             set: { store.setClaudeCodeModel($0, for: id) }
         )
     }
 
     private func claudeCodeEffortBinding(for id: UUID) -> Binding<ClaudeCodeEffort> {
         Binding(
-            get: { store.entry(id: id)?.claudeCode?.effort ?? .high },
+            get: { store.entry(id: id)?.claudeCode?.effort ?? .medium },
             set: { store.setClaudeCodeEffort($0, for: id) }
         )
     }

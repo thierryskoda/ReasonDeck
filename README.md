@@ -38,12 +38,12 @@ On a first installation, the current source creates two editable starter shortcu
 
 | Shortcut | ChatGPT | Claude Desktop | Cursor | Antigravity |
 | --- | --- | --- | --- | --- |
-| `⌘⇧1` economical | 5.6 Luna / High | — | Composer 2.5 Fast / High | Gemini 3.7 Flash / High |
-| `⌘⇧2` premium | 5.6 Sol / High | — | GPT-5.6 Sol / High | Gemini 3.1 Pro / High |
+| `⌘⇧1` economical | 5.6 Luna / High | Sonnet 5 / Medium | Composer 2.5 Fast / High | Gemini 3.7 Flash / High |
+| `⌘⇧2` premium | 5.6 Sol / High | Sonnet 5 / High | GPT-5.6 Sol / High | Gemini 3.1 Pro / High |
 
 Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
-Claude's Home/Chat composer passed signed live switching on Claude Desktop 1.34493.1 with a Free account; it works independently of the paid Code tab. Haiku 4.5 selects successfully, but Claude exposes its `Extended` mode instead of ReasonDeck's standard effort set, so a requested standard effort is truthfully reported as unavailable. The separate Code-tab path still requires a paid account and remains experimental until it passes a signed live switch.
+Claude's Home/Chat composer passed signed live switching on Claude Desktop 1.34493.1 with a Free account; it works independently of the paid Code tab. New shortcuts use the Home-compatible Sonnet 5 Medium/High pairs, while existing saved shortcuts remain unchanged. Haiku 4.5 selects successfully, but Claude exposes its `Extended` mode instead of ReasonDeck's standard effort set, so a requested standard effort is truthfully reported as unavailable. The separate Code-tab path still requires a paid account and remains experimental until it passes a signed live switch.
 
 ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 

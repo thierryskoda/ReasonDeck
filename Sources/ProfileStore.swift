@@ -179,7 +179,7 @@ final class ProfileStore {
                 : nil
         case .claudeCode:
             claudeCode = enabled
-                ? current.claudeCode ?? ClaudeCodeSelection(model: .opus5, effort: .high)
+                ? current.claudeCode ?? ClaudeCodeSelection(model: .sonnet5, effort: .medium)
                 : nil
         case .cursor:
             if enabled {
@@ -437,7 +437,7 @@ final class ProfileStore {
                     modifiers: [.command, .shift]
                 ),
                 chatGPT: ChatGPTSelection(model: .luna56, effort: .high),
-                claudeCode: nil,
+                claudeCode: ClaudeCodeSelection(model: .sonnet5, effort: .medium),
                 cursor: CursorSelection(model: .composer25Fast, effort: .high),
                 antigravity: AntigravitySelection(model: .gemini37Flash, effort: .high)
             ),
@@ -448,7 +448,7 @@ final class ProfileStore {
                     modifiers: [.command, .shift]
                 ),
                 chatGPT: ChatGPTSelection(model: .sol56, effort: .high),
-                claudeCode: nil,
+                claudeCode: ClaudeCodeSelection(model: .sonnet5, effort: .high),
                 cursor: CursorSelection(model: .gpt56Sol, effort: .high),
                 antigravity: AntigravitySelection(model: .gemini31Pro, effort: .high)
             )

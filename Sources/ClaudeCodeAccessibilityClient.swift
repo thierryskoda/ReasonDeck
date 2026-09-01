@@ -17,12 +17,15 @@ enum ClaudeChatLabels {
         "Haiku 4.5 Fastest for quick answers": .haiku45,
     ]
 
-    private static let pickerEfforts: [String: ClaudeCodeEffort] = [
-        "Low": .low,
-        "Medium Default": .medium,
-        "High": .high,
-        "Extra": .extraHigh,
-        "Max": .max,
+    private static let pickerEfforts: [(label: String, effort: ClaudeCodeEffort)] = [
+        ("Low", .low),
+        ("Medium Default", .medium),
+        ("High", .high),
+        ("Extra", .extraHigh),
+        // Claude sometimes appends cohort-specific usage copy to Max. Keep each
+        // observed full label allowlisted instead of weakening this to prefix matching.
+        ("Max", .max),
+        ("Max 3.5× or more usage", .max),
     ]
 
     static func selection(inComposerTitle title: String) -> ClaudeCodeSelection? {
@@ -48,15 +51,15 @@ enum ClaudeChatLabels {
     }
 
     static func effort(inPickerRow label: String) -> ClaudeCodeEffort? {
-        pickerEfforts[label]
+        pickerEfforts.first(where: { $0.label == label })?.effort
     }
 
     static func pickerLabel(for effort: ClaudeCodeEffort) -> String? {
         composerEfforts.first(where: { $0.effort == effort })?.label
     }
 
-    static func pickerRowLabel(for effort: ClaudeCodeEffort) -> String? {
-        pickerEfforts.first(where: { $0.value == effort })?.key
+    static func pickerRowLabels(for effort: ClaudeCodeEffort) -> Set<String> {
+        Set(pickerEfforts.filter { $0.effort == effort }.map(\.label))
     }
 }
 
@@ -276,7 +279,8 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             throw SwitchFailure.claudeCodeSurfaceNotFound
         }
         if initial.effort == effort { return effort.rawValue }
-        guard let desiredLabel = ClaudeChatLabels.pickerRowLabel(for: effort),
+        let desiredLabels = ClaudeChatLabels.pickerRowLabels(for: effort)
+        guard !desiredLabels.isEmpty,
               let currentEffort = initial.effort,
               let currentLabel = ClaudeChatLabels.pickerLabel(for: currentEffort)
         else { throw SwitchFailure.effortUnavailable(effort.rawValue) }
@@ -323,7 +327,9 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
                 throw SwitchFailure.accessibility("Claude Chat effort menu could not be verified.")
             }
             guard let row = uniqueRow(rows.filter { $0.effort == effort }.map(\.node)),
-                  rows.contains(where: { $0.node.id == row.id && $0.label == desiredLabel })
+                  rows.contains(where: {
+                      $0.node.id == row.id && desiredLabels.contains($0.label)
+                  })
             else { throw SwitchFailure.effortUnavailable(effort.rawValue) }
             _ = try performMenuRow(row, in: effortMenu, invocation: invocation)
             try await waitForChatMenusToClose(invocation: invocation)

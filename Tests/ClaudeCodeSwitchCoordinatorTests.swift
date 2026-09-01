@@ -179,9 +179,18 @@ private let claudeInvocation = HotkeyInvocation(
     #expect(ClaudeChatLabels.effort(inPickerRow: "Medium Default") == .medium)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Extra") == .extraHigh)
     #expect(ClaudeChatLabels.pickerLabel(for: .medium) == "Medium")
-    #expect(ClaudeChatLabels.pickerRowLabel(for: .medium) == "Medium Default")
+    #expect(ClaudeChatLabels.pickerRowLabels(for: .medium) == ["Medium Default"])
     #expect(ClaudeChatLabels.pickerLabel(for: .extraHigh) == "Extra")
-    #expect(ClaudeChatLabels.pickerRowLabel(for: .ultracode) == nil)
+    #expect(ClaudeChatLabels.pickerRowLabels(for: .ultracode).isEmpty)
     #expect(ClaudeChatLabels.pickerLabel(for: .ultracode) == nil)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Extended") == nil)
+}
+
+@Test func claudeChatMaxEffortAcceptsOnlyKnownExactRowVariants() {
+    let expectedLabels: Set<String> = ["Max", "Max 3.5× or more usage"]
+
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Max") == .max)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Max 3.5× or more usage") == .max)
+    #expect(ClaudeChatLabels.pickerRowLabels(for: .max) == expectedLabels)
+    #expect(ClaudeChatLabels.effort(inPickerRow: "Max 2× usage") == nil)
 }

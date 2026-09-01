@@ -35,7 +35,7 @@ private func isolatedDefaults() -> UserDefaults {
     #expect(economical.chatGPT == ChatGPTSelection(model: .luna56, effort: .high))
     #expect(economical.cursor == CursorSelection(model: .composer25Fast, effort: .high))
     #expect(economical.antigravity == AntigravitySelection(model: .gemini37Flash, effort: .high))
-    #expect(economical.claudeCode == nil)
+    #expect(economical.claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .medium))
 
     let premiumShortcut = try KeyboardShortcut(
         keyCode: 19,
@@ -47,9 +47,22 @@ private func isolatedDefaults() -> UserDefaults {
     #expect(premium.chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
     #expect(premium.cursor == CursorSelection(model: .gpt56Sol, effort: .high))
     #expect(premium.antigravity == AntigravitySelection(model: .gemini31Pro, effort: .high))
-    #expect(premium.claudeCode == nil)
+    #expect(premium.claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
 
     #expect(ProfileStore(defaults: defaults).entries == store.entries)
+}
+
+@MainActor
+@Test func enablingClaudeUsesVerifiedHomeCompatibleDefault() throws {
+    let store = ProfileStore(defaults: isolatedDefaults())
+    let id = try #require(store.addEntry())
+
+    try store.setTarget(.claudeCode, enabled: true, for: id)
+
+    #expect(
+        store.entry(id: id)?.claudeCode
+            == ClaudeCodeSelection(model: .sonnet5, effort: .medium)
+    )
 }
 
 @MainActor

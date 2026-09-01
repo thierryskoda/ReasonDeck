@@ -2,6 +2,13 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.2.1 - 2026-08-31
+
+### Fixed
+
+- Recognize Claude Desktop Home/Chat's exact `Max 3.5× or more usage` effort row while retaining the previously accepted exact `Max` label.
+- Give new installations and newly enabled Claude assignments verified Sonnet 5 Medium/High defaults instead of leaving Claude off or defaulting to an upgrade-only model. Existing saved shortcuts remain unchanged.
+
 ## 0.2.0 - 2026-08-31
 
 ### Added

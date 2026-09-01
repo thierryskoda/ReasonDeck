@@ -26,6 +26,7 @@ Claude Code Desktop documents dedicated model and effort menus at Command-Shift-
 - The same shortcut can safely select different profiles depending on which supported app is frontmost.
 - Claude UI or Accessibility changes disable the adapter instead of selecting by position.
 - A signed Release build passed live Home/Chat switching in Claude Desktop 1.34493.1 on a Free account: Sonnet 5 Medium to High and back, an already-applied Medium run, and a Sonnet-to-Haiku-to-Sonnet model round trip. Haiku selected successfully as `Model: Haiku 4.5 Extended`, then truthfully reported the standard Medium effort as unavailable.
+- Claude may append plan-usage copy to an effort row, such as `Max 3.5× or more usage`. ReasonDeck allowlists each observed full label and continues to reject unrecognized variants rather than matching a prefix.
 - A Claude Desktop account entitled to the Code tab is still required to verify the separate Code keyboard-menu path. Home/Chat evidence does not establish Code compatibility.
 - Claude choices can differ by plan or session. A missing exact item is reported as unavailable; ReasonDeck never substitutes a model or effort.
 
