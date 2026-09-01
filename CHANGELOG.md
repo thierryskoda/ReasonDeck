@@ -2,6 +2,16 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.2.3 - 2026-09-01
+
+### Fixed
+
+- Retry Claude Desktop surface and composer discovery while Chromium finishes publishing its Accessibility tree, preventing transient shortcut failures immediately after focus changes or interface updates.
+
+### Safety
+
+- Keep every retry bounded by the existing two-second deadline and revalidate the exact frontmost process and focused window before each Accessibility scan.
+
 ## 0.2.2 - 2026-08-31
 
 ### Fixed
