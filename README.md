@@ -10,11 +10,11 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 ## Download
 
-### [Download ReasonDeck 0.2.0 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.2.0/ReasonDeck-0.2.0.dmg)
+### [Download ReasonDeck 0.2.1 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.2.1/ReasonDeck-0.2.1.dmg)
 
-Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.2.0)
+Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.2.1)
 
-Version 0.2.0 is a prerelease with model-and-effort shortcuts for ChatGPT, Claude Desktop Home/Chat, Cursor, and Antigravity. It also includes Cursor's **Next finished session** shortcut.
+Version 0.2.1 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Home/Chat, Cursor, and Antigravity. It also includes Cursor's **Next finished session** shortcut.
 
 ### Install
 
