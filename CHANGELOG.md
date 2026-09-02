@@ -2,6 +2,13 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.2.4 - 2026-09-01
+
+### Fixed
+
+- Select Sonnet 5, Opus 5, and other exact supported models directly from Claude Desktop's verified primary Chat/Cowork model menu when Claude exposes them there.
+- Open `More models` only when the requested exact model is absent from the primary menu, preserving the bounded fallback for account layouts that still place supported models in the nested menu.
+
 ## 0.2.3 - 2026-09-01
 
 ### Fixed

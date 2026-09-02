@@ -76,6 +76,22 @@ enum ClaudeChatLabels {
     }
 }
 
+enum ClaudeChatModelLocation: Equatable {
+    case root
+    case moreModels
+}
+
+enum ClaudeChatModelRouting {
+    static func location(
+        for model: ClaudeCodeModel,
+        rootModels: Set<ClaudeCodeModel>,
+        hasMoreModels: Bool
+    ) -> ClaudeChatModelLocation? {
+        if rootModels.contains(model) { return .root }
+        return hasMoreModels ? .moreModels : nil
+    }
+}
+
 enum ClaudeCodeLabels {
     private static let pickerModels: [String: ClaudeCodeModel] = [
         "Fable 5 Requires usage credits": .fable5,
@@ -377,37 +393,53 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             ) else {
                 throw SwitchFailure.accessibility("Claude Chat model menu did not stabilize.")
             }
-            diagnosticPhase = "opening_nested"
             let moreModels = rootMenu.nodes.filter {
                 $0.visible
                     && isDescendant($0.id, of: rootMenu.root.id, in: rootMenu.nodes)
                     && controlLabels($0.element).contains("More models")
                     && validFrame($0.frame)
             }
-            guard let trigger = uniqueRow(moreModels) else {
-                throw SwitchFailure.accessibility("Claude Chat More models row was unavailable.")
-            }
-            // A standalone hover rebuilds this Chromium row before mouse-down.
-            // Deliver directly to the snapshot-verified point instead.
-            originalPointer = try clickMenuRow(
-                trigger,
-                in: rootMenu,
-                prepositionPointer: false,
-                invocation: invocation
-            )
-            // Paid Chromium focuses this exact submenu trigger without opening it.
-            // Native Right Arrow performs the owned-menu transition deterministically.
-            try TrustedTargetAction.postFocusedKey(
-                keyCode: 124,
-                flags: [],
-                invocation: invocation
-            )
-            guard let menu = try await waitForModelMenu(
-                title: "More models",
-                timeout: deadline,
-                invocation: invocation
-            ) else {
-                throw SwitchFailure.accessibility("Claude Chat More models menu did not open.")
+            let rootRows = modelRows(in: rootMenu)
+            guard let location = ClaudeChatModelRouting.location(
+                for: model,
+                rootModels: Set(rootRows.map(\.model)),
+                hasMoreModels: uniqueRow(moreModels) != nil
+            ) else { throw SwitchFailure.modelUnavailable(model.rawValue) }
+
+            let menu: LiveMenu
+            switch location {
+            case .root:
+                // Claude promotes current models into the primary picker. Prefer
+                // that exact owned row instead of opening the legacy submenu.
+                menu = rootMenu
+            case .moreModels:
+                diagnosticPhase = "opening_nested"
+                guard let trigger = uniqueRow(moreModels) else {
+                    throw SwitchFailure.accessibility("Claude Chat More models row was unavailable.")
+                }
+                // A standalone hover rebuilds this Chromium row before mouse-down.
+                // Deliver directly to the snapshot-verified point instead.
+                originalPointer = try clickMenuRow(
+                    trigger,
+                    in: rootMenu,
+                    prepositionPointer: false,
+                    invocation: invocation
+                )
+                // Paid Chromium focuses this exact submenu trigger without opening it.
+                // Native Right Arrow performs the owned-menu transition deterministically.
+                try TrustedTargetAction.postFocusedKey(
+                    keyCode: 124,
+                    flags: [],
+                    invocation: invocation
+                )
+                guard let nestedMenu = try await waitForModelMenu(
+                    title: "More models",
+                    timeout: deadline,
+                    invocation: invocation
+                ) else {
+                    throw SwitchFailure.accessibility("Claude Chat More models menu did not open.")
+                }
+                menu = nestedMenu
             }
             diagnosticPhase = "focusing_model"
             let rows = modelRows(in: menu)
@@ -421,21 +453,34 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             // focus-only no-op. This row is already exact-label, owned-menu,
             // and geometry verified, so use the same bounded click required by
             // the nested effort trigger.
-            _ = try clickMenuRow(
+            let selectionPointer = try clickMenuRow(
                 row,
                 in: menu,
                 prepositionPointer: false,
                 invocation: invocation
             )
+            if originalPointer == nil { originalPointer = selectionPointer }
             try await Task.sleep(for: .milliseconds(500))
             diagnosticPhase = "activating_model"
             try validate(invocation, requiresCodeSurface: false)
             if !verifiedChatMenuRoots(invocation: invocation).isEmpty {
-                guard let refreshedMenu = try await waitForModelMenu(
-                    title: "More models",
-                    timeout: .milliseconds(350),
-                    invocation: invocation
-                ), let refreshedRow = uniqueRow(
+                let refreshedMenu: LiveMenu?
+                switch location {
+                case .root:
+                    refreshedMenu = try await waitForChatRootMenu(
+                        title: initial.title,
+                        currentModel: initial.model,
+                        timeout: .milliseconds(350),
+                        invocation: invocation
+                    )
+                case .moreModels:
+                    refreshedMenu = try await waitForModelMenu(
+                        title: "More models",
+                        timeout: .milliseconds(350),
+                        invocation: invocation
+                    )
+                }
+                guard let refreshedMenu, let refreshedRow = uniqueRow(
                     modelRows(in: refreshedMenu)
                         .filter { $0.model == model }
                         .map(\.node)

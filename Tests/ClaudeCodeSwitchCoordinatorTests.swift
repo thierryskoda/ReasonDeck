@@ -186,6 +186,30 @@ private let claudeInvocation = HotkeyInvocation(
     #expect(ClaudeChatLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
 }
 
+@Test func claudeChatModelRoutingPrefersTheVerifiedRootMenu() {
+    #expect(
+        ClaudeChatModelRouting.location(
+            for: .sonnet5,
+            rootModels: [.opus5, .sonnet5, .haiku45],
+            hasMoreModels: true
+        ) == .root
+    )
+    #expect(
+        ClaudeChatModelRouting.location(
+            for: .sonnet5,
+            rootModels: [.opus5],
+            hasMoreModels: true
+        ) == .moreModels
+    )
+    #expect(
+        ClaudeChatModelRouting.location(
+            for: .sonnet5,
+            rootModels: [.opus5],
+            hasMoreModels: false
+        ) == nil
+    )
+}
+
 @Test func claudeChatEffortRowsMapExactChatLabelsToTypedEfforts() {
     #expect(ClaudeChatLabels.effort(inPickerRow: "Low") == .low)
     #expect(ClaudeChatLabels.effort(inPickerRow: "Medium") == .medium)
