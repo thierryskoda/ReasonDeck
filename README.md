@@ -43,7 +43,7 @@ On a first installation, the current source creates two editable starter shortcu
 
 Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
-Claude Desktop 1.40609.0 passed signed live switching on a paid account in Chat, Cowork, and Code. Chat and Cowork share Claude's combined model-and-effort control; Code uses its separate visible model popup and effort slider. New shortcuts use Sonnet 5 Medium/High pairs, while existing saved shortcuts remain unchanged. Claude choices still vary by entitlement: ReasonDeck reports an unavailable exact choice instead of substituting another model or effort.
+Claude Desktop 1.40609.0 passed signed live switching on a paid account in Chat, Cowork, and Code. Claude Desktop 1.46388.2 renamed Code's composer model popup to `Model: <name>`; the current source accepts that form and the earlier bare name, verified against 1.46388.2's live Accessibility tree. Chat and Cowork share Claude's combined model-and-effort control; Code uses its separate visible model popup and effort slider. New shortcuts use Sonnet 5 Medium/High pairs, while existing saved shortcuts remain unchanged. Claude choices still vary by entitlement: ReasonDeck reports an unavailable exact choice instead of substituting another model or effort.
 
 ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 

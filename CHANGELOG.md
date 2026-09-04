@@ -2,6 +2,16 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.2.5 - 2026-09-04
+
+### Fixed
+
+- Recognize Claude Code's composer model popup after Claude Desktop 1.46388.2 renamed it from the bare model name to `Model: <name>`, which had made every Claude Code shortcut fail with an accessibility error while the effort control still matched.
+
+### Safety
+
+- Match the renamed label by exact prefix plus an exact closed-set model name, keeping the bare pre-1.46388 form allowlisted and refusing partial or trailing-copy variants instead of stripping an arbitrary prefix.
+
 ## 0.2.4 - 2026-09-01
 
 ### Fixed

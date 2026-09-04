@@ -108,8 +108,18 @@ enum ClaudeCodeLabels {
         ("Max", 4, .max),
     ]
 
+    private static let composerModelPrefix = "Model: "
+
+    // Claude Desktop 1.46388.2 renamed Code's closed model popup from the bare
+    // model name to the "Model: <name>" form its effort popup already used.
+    // Both exact forms stay allowlisted so pre-1.46388 layouts keep verifying,
+    // and the qualified form is matched by exact prefix plus an exact closed-set
+    // name — never by stripping an arbitrary prefix or by substring search,
+    // which would let an unrelated Chromium label impersonate a model control.
     static func model(inComposerTitle title: String) -> ClaudeCodeModel? {
-        ClaudeCodeModel(rawValue: title)
+        if let model = ClaudeCodeModel(rawValue: title) { return model }
+        guard title.hasPrefix(composerModelPrefix) else { return nil }
+        return ClaudeCodeModel(rawValue: String(title.dropFirst(composerModelPrefix.count)))
     }
 
     static func model(inPickerRow label: String) -> ClaudeCodeModel? {

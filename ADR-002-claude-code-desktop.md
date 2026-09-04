@@ -1,6 +1,6 @@
 # ADR-002: Claude Desktop adapter
 
-- Status: Accepted and runtime-enabled; Chat, Cowork, and Code verified on Claude Desktop 1.40609.0 with a paid account
+- Status: Accepted and runtime-enabled; Chat, Cowork, and Code verified on Claude Desktop 1.40609.0 with a paid account. Code's composer control labels re-verified against Claude Desktop 1.46388.2's live Accessibility tree; a signed live Code switch on 1.46388.2 is still pending
 - Scope: Claude Desktop Chat, Cowork, and Code model-and-effort selection
 
 ## Context
@@ -26,6 +26,8 @@ The current paid Code surface exposes an exact model popup and a named effort sl
 - The same shortcut can safely select different profiles depending on which supported app is frontmost.
 - Claude UI or Accessibility changes disable the adapter instead of selecting by position. The paid Chat/Cowork layout's verified root rows and conditional exact `More models` transition are part of that closed contract.
 - A signed Release build passed live switching in Claude Desktop 1.40609.0 on a paid account. Chat passed Sonnet 5 Medium to High plus an already-applied High run; Cowork passed High to Medium; Code passed Opus 5/Low to Sonnet 5/Medium and then Medium to High.
+- Claude renames these controls between builds without changing their structure. Code's closed model popup was the bare model name in 1.40609.0 and `Model: <name>` in 1.46388.2, while its effort popup kept the `Effort: <label>` form throughout. Composer matching therefore allowlists both exact model forms and pairs the qualified prefix with an exact closed-set name. When only one of the two structurally related Code controls stops matching, the adapter fails closed with `code_surface_missing phase=relationship`, and the log's non-zero side identifies which label drifted. Re-read the live popup labels before widening any matcher.
+- Code's composer popups advertise `AXShowMenu` and `AXPress`, but on Claude Desktop 1.46388.2 `AXShowMenu` returns success while opening Chromium's generic text context menu (`Copy`, `Select All`) instead of the model or effort picker. Observed worse: an `AXShowMenu`-then-cancel cycle against the effort popup silently decremented the live effort one step per attempt. Never probe or drive these controls through advertised Accessibility actions; keep using the verified composer-relative geometry click, and treat read-only attribute reads as the only safe inspection.
 - Claude may append plan-usage copy to an effort row, such as `Max 2.5× or more usage` or `Max 3.5× or more usage`. ReasonDeck allowlists each observed full label and continues to reject unrecognized variants rather than matching a prefix.
 - Current Code efforts are Low, Medium, High, Extra, and Max. Persisted Auto, None, or Ultracode assignments remain invalid for this live surface and are reported as unavailable instead of being coerced to a slider position.
 - Claude choices can differ by plan or session. A missing exact item is reported as unavailable; ReasonDeck never substitutes a model or effort.

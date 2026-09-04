@@ -255,6 +255,25 @@ private let claudeInvocation = HotkeyInvocation(
     #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
 }
 
+@Test func claudeCodeComposerModelAcceptsBothVerifiedLabelForms() {
+    // Claude Desktop 1.46388.2 exposes the closed Code model popup as
+    // "Model: <name>"; earlier verified builds exposed the bare name.
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Opus 5") == .opus5)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Sonnet 5") == .sonnet5)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Haiku 4.5") == .haiku45)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5") == .fable5)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Sonnet 5") == .sonnet5)
+    // The qualified form stays closed to exact names, so neither trailing copy,
+    // a different prefix, nor a substring match may impersonate a model control.
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Sonnet 5 experimental") == nil)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5 Requires usage credits") == nil)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model:Opus 5") == nil)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Switch Model: Opus 5") == nil)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Effort: Extra") == nil)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: ") == nil)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Auto") == nil)
+}
+
 @Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)
