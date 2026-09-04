@@ -6,11 +6,11 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ### Fixed
 
-- Recognize Claude Code's composer model popup after Claude Desktop 1.46388.2 renamed it from the bare model name to `Model: <name>`, which had made every Claude Code shortcut fail with an accessibility error while the effort control still matched.
+- Recognize Claude Code's renamed `Model: <name>` title on both the closed composer popup and opened model menu. On Claude Desktop 1.46388.3, ReasonDeck could visibly open the picker, then wait for its obsolete bare title and fail with an accessibility error.
 
 ### Safety
 
-- Match the renamed label by exact prefix plus an exact closed-set model name, keeping the bare pre-1.46388 form allowlisted and refusing partial or trailing-copy variants instead of stripping an arbitrary prefix.
+- Match both version-specific forms as exact full titles paired with an exact closed-set model name, refusing partial or trailing-copy variants and remaining independent of model order.
 
 ## 0.2.4 - 2026-09-01
 

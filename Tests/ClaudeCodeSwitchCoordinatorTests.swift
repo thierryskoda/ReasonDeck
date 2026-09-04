@@ -274,6 +274,17 @@ private let claudeInvocation = HotkeyInvocation(
     #expect(ClaudeCodeLabels.model(inComposerTitle: "Auto") == nil)
 }
 
+@Test func claudeCodeModelMenuUsesTheSameTwoExactVerifiedTitles() {
+    #expect(
+        ClaudeCodeLabels.modelControlTitles(for: .opus5)
+            == Set(["Opus 5", "Model: Opus 5"])
+    )
+    #expect(
+        ClaudeCodeLabels.modelControlTitles(for: .sonnet5)
+            == Set(["Sonnet 5", "Model: Sonnet 5"])
+    )
+}
+
 @Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)

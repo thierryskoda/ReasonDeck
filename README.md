@@ -10,11 +10,11 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 ## Download
 
-### [Download ReasonDeck 0.2.2 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.2.2/ReasonDeck-0.2.2.dmg)
+### [Download ReasonDeck 0.2.5 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.2.5/ReasonDeck-0.2.5.dmg)
 
-Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.2.2)
+Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.2.5)
 
-Version 0.2.2 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity. It also includes Cursor's **Next finished session** shortcut.
+Version 0.2.5 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity. It also includes Cursor's **Next finished session** shortcut.
 
 ### Install
 
@@ -43,7 +43,7 @@ On a first installation, the current source creates two editable starter shortcu
 
 Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
-Claude Desktop 1.40609.0 passed signed live switching on a paid account in Chat, Cowork, and Code. Claude Desktop 1.46388.2 renamed Code's composer model popup to `Model: <name>`; the current source accepts that form and the earlier bare name, verified against 1.46388.2's live Accessibility tree. Chat and Cowork share Claude's combined model-and-effort control; Code uses its separate visible model popup and effort slider. New shortcuts use Sonnet 5 Medium/High pairs, while existing saved shortcuts remain unchanged. Claude choices still vary by entitlement: ReasonDeck reports an unavailable exact choice instead of substituting another model or effort.
+Claude Desktop 1.40609.0 passed signed live switching on a paid account in Chat, Cowork, and Code. Claude Desktop 1.46388.2 renamed Code's composer model popup to `Model: <name>`, and 1.46388.3 exposes that same title on the opened model menu; version 0.2.5 accepts that exact form and the earlier exact bare name. Chat and Cowork share Claude's combined model-and-effort control; Code uses its separate visible model popup and effort slider. ReasonDeck selects exact labels inside a verified owned menu rather than relying on model order. New shortcuts use Sonnet 5 Medium/High pairs, while existing saved shortcuts remain unchanged. Claude choices still vary by entitlement: ReasonDeck reports an unavailable exact choice instead of substituting another model or effort.
 
 ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 

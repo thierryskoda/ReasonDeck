@@ -122,6 +122,13 @@ enum ClaudeCodeLabels {
         return ClaudeCodeModel(rawValue: String(title.dropFirst(composerModelPrefix.count)))
     }
 
+    // The opened Code picker keeps the closed popup's exact title on its menu
+    // root. Search both verified version-specific forms so discovery and menu
+    // ownership cannot disagree after the popup has visibly opened.
+    static func modelControlTitles(for model: ClaudeCodeModel) -> Set<String> {
+        [model.rawValue, "\(composerModelPrefix)\(model.rawValue)"]
+    }
+
     static func model(inPickerRow label: String) -> ClaudeCodeModel? {
         pickerModels[label]
     }
@@ -670,7 +677,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         timeout: Duration,
         invocation: HotkeyInvocation
     ) async throws -> LiveMenu? {
-        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+        try await waitForMenu(titles: [title], timeout: timeout, invocation: invocation) { menu in
             Set(self.modelRows(in: menu).map(\.model)).count >= 2
         }
     }
@@ -681,7 +688,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         timeout: Duration,
         invocation: HotkeyInvocation
     ) async throws -> LiveMenu? {
-        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+        try await waitForMenu(titles: [title], timeout: timeout, invocation: invocation) { menu in
             let moreModels = menu.nodes.filter {
                 $0.visible
                     && self.isDescendant($0.id, of: menu.root.id, in: menu.nodes)
@@ -698,13 +705,13 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         timeout: Duration,
         invocation: HotkeyInvocation
     ) async throws -> LiveMenu? {
-        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+        try await waitForMenu(titles: [title], timeout: timeout, invocation: invocation) { menu in
             Set(self.effortRows(in: menu).map(\.effort)).count >= 3
         }
     }
 
     private func waitForMenu(
-        title: String,
+        titles: Set<String>,
         timeout: Duration,
         invocation: HotkeyInvocation,
         verifying predicate: (LiveMenu) -> Bool
@@ -712,7 +719,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         let clock = ContinuousClock()
         let end = clock.now.advanced(by: timeout)
         while clock.now < end {
-            let matches = try menus(titled: title, invocation: invocation).filter(predicate)
+            let matches = try menus(titledAnyOf: titles, invocation: invocation).filter(predicate)
             if matches.count == 1 { return matches[0] }
             if matches.count > 1 {
                 throw SwitchFailure.accessibility("Claude Chat menu was ambiguous.")
@@ -869,12 +876,12 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         )
     }
 
-    private func menus(titled title: String, invocation: HotkeyInvocation) throws -> [LiveMenu] {
+    private func menus(titledAnyOf titles: Set<String>, invocation: HotkeyInvocation) throws -> [LiveMenu] {
         let nodes = try windowNodes(invocation: invocation)
         return nodes.compactMap { node in
             guard node.visible,
                   node.role == kAXMenuRole as String,
-                  controlLabels(node.element).contains(title),
+                  controlLabels(node.element).contains(where: titles.contains),
                   validFrame(node.frame)
             else { return nil }
             // Chromium can expose the same nested-menu rows through both the
@@ -895,7 +902,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
 
         try TrustedTargetAction.press(composer.modelPopup, invocation: invocation)
         if let menu = try await waitForCodeModelMenu(
-            title: composer.model.rawValue,
+            model: composer.model,
             timeout: .milliseconds(350),
             invocation: invocation
         ) { return menu }
@@ -908,7 +915,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             TrustedTargetAction.restorePointer(to: pointer)
         }
         guard let menu = try await waitForCodeModelMenu(
-            title: composer.model.rawValue,
+            model: composer.model,
             timeout: deadline,
             invocation: invocation
         ) else { throw SwitchFailure.accessibility("Claude Code model menu did not open.") }
@@ -916,11 +923,15 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
     }
 
     private func waitForCodeModelMenu(
-        title: String,
+        model: ClaudeCodeModel,
         timeout: Duration,
         invocation: HotkeyInvocation
     ) async throws -> LiveMenu? {
-        try await waitForMenu(title: title, timeout: timeout, invocation: invocation) { menu in
+        try await waitForMenu(
+            titles: ClaudeCodeLabels.modelControlTitles(for: model),
+            timeout: timeout,
+            invocation: invocation
+        ) { menu in
             Set(self.codeModelRows(in: menu).map(\.model)).count >= 3
         }
     }
