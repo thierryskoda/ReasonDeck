@@ -19,7 +19,7 @@ Treat one Antigravity switch as a fail-closed, captured-window transaction:
 4. Resolve the requested row by an exact, source-owned full-title mapping. Antigravity 2.8.1's exact `Fast`-badged Medium Flash rows map to the canonical Medium selection; substring, prefix, model-only, and unknown trailing-copy matches remain invalid. A missing or duplicate exact row changes nothing.
 5. Deliver `AXPress` once through the trusted action boundary and require the verified picker to close.
 6. Reopen a fresh picker and parse its exact current-selection title back into the closed typed selection. Report success only when both observed values equal the request.
-7. Send Escape only while a fresh snapshot still proves the same Antigravity picker is open.
+7. After exact read-back, accept an already-closed picker as the desired terminal UI state. Send Escape only while a fresh snapshot still proves the same Antigravity picker is open.
 8. Read titles only from allowlisted control roles and retain only recognized closed labels. Never inspect editor or transcript text-node values, log unknown Accessibility text, or add network access.
 
 ## Alternatives considered
