@@ -2,7 +2,7 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
-## Unreleased
+## 0.2.6 - 2026-09-05
 
 ### Added
 
