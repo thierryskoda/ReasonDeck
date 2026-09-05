@@ -303,6 +303,58 @@ private let claudeInvocation = HotkeyInvocation(
     )
 }
 
+@Test func claudePreparationWaitsOnlyForTheCapturedWindowToRepublish() {
+    #expect(
+        ClaudeAccessibilityPreparationPolicy.windowState(
+            capturedWindowID: 42,
+            observedWindowID: nil
+        ) == .awaitingRepublish
+    )
+    #expect(
+        ClaudeAccessibilityPreparationPolicy.windowState(
+            capturedWindowID: 42,
+            observedWindowID: 42
+        ) == .ready
+    )
+    #expect(
+        ClaudeAccessibilityPreparationPolicy.windowState(
+            capturedWindowID: 42,
+            observedWindowID: 99
+        ) == .changed
+    )
+}
+
+@Test func claudeAccessibilityBootstrapRunsOncePerTrustedProcess() {
+    #expect(
+        ClaudeAccessibilityBootstrapPolicy.shouldPrepare(
+            pid: 42,
+            lastPreparedPID: nil,
+            accessibilityTrusted: true
+        )
+    )
+    #expect(
+        !ClaudeAccessibilityBootstrapPolicy.shouldPrepare(
+            pid: 42,
+            lastPreparedPID: 42,
+            accessibilityTrusted: true
+        )
+    )
+    #expect(
+        ClaudeAccessibilityBootstrapPolicy.shouldPrepare(
+            pid: 99,
+            lastPreparedPID: 42,
+            accessibilityTrusted: true
+        )
+    )
+    #expect(
+        !ClaudeAccessibilityBootstrapPolicy.shouldPrepare(
+            pid: 99,
+            lastPreparedPID: nil,
+            accessibilityTrusted: false
+        )
+    )
+}
+
 @Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)

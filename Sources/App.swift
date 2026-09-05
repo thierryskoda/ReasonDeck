@@ -40,9 +40,11 @@ final class SettingsWindowController {
 final class MenuBarViewModel {
     private let logger = Logger(subsystem: "com.thierryai.ReasonDeck", category: "result")
     private let dispatcher = TargetDispatcher()
+    private let claudeAccessibilityBootstrapper = ClaudeAccessibilityBootstrapper()
     private let settingsWindowController = SettingsWindowController()
     private var hotkeyTap: HotkeyEventTap?
     @ObservationIgnored private var activationObserver: NSObjectProtocol?
+    @ObservationIgnored private var workspaceLaunchObserver: NSObjectProtocol?
     let store: ProfileStore
     let readiness = PermissionReadiness()
     var isSwitching = false
@@ -73,6 +75,20 @@ final class MenuBarViewModel {
             Task { @MainActor in self?.retryPermissions() }
         }
         refreshPermissions()
+        workspaceLaunchObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didLaunchApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication,
+                  application.bundleIdentifier == AppConstants.claudeDesktopBundleID
+            else { return }
+            Task { @MainActor in
+                self?.prepareClaudeAccessibility(pid: application.processIdentifier)
+            }
+        }
+        prepareClaudeAccessibilityForRunningApp()
         let firstRunKey = ProfileStore.didOpenInitialSettingsKey
         if !UserDefaults.standard.bool(forKey: firstRunKey) {
             UserDefaults.standard.set(true, forKey: firstRunKey)
@@ -314,6 +330,7 @@ final class MenuBarViewModel {
             _ = hotkeyTap?.start()
         }
         refreshPermissions()
+        prepareClaudeAccessibilityForRunningApp()
     }
     func refreshPermissions() {
         readiness.refresh(eventTapAvailable: hotkeyTap?.state == .running)
@@ -335,6 +352,20 @@ final class MenuBarViewModel {
     func stop() {
         hotkeyTap?.stop()
         if let activationObserver { NotificationCenter.default.removeObserver(activationObserver) }
+        if let workspaceLaunchObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceLaunchObserver)
+        }
+    }
+
+    private func prepareClaudeAccessibilityForRunningApp() {
+        guard let application = NSRunningApplication.runningApplications(
+            withBundleIdentifier: AppConstants.claudeDesktopBundleID
+        ).first else { return }
+        prepareClaudeAccessibility(pid: application.processIdentifier)
+    }
+
+    private func prepareClaudeAccessibility(pid: pid_t) {
+        Task { await claudeAccessibilityBootstrapper.prepare(pid: pid) }
     }
 }
 

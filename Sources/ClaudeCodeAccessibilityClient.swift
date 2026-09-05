@@ -173,9 +173,67 @@ enum ClaudeMenuSelection {
 }
 
 enum ClaudeAccessibilityPreparationPolicy {
+    enum WindowState: Equatable {
+        case awaitingRepublish
+        case ready
+        case changed
+    }
+
     static func shouldPrepare(after failure: SwitchFailure) -> Bool {
         if case .claudeCodeSurfaceNotFound = failure { return true }
         return false
+    }
+
+    static func windowState(
+        capturedWindowID: CGWindowID,
+        observedWindowID: CGWindowID?
+    ) -> WindowState {
+        guard let observedWindowID else { return .awaitingRepublish }
+        return observedWindowID == capturedWindowID ? .ready : .changed
+    }
+}
+
+enum ClaudeAccessibilityBootstrapPolicy {
+    static func shouldPrepare(
+        pid: pid_t,
+        lastPreparedPID: pid_t?,
+        accessibilityTrusted: Bool
+    ) -> Bool {
+        accessibilityTrusted && pid != lastPreparedPID
+    }
+}
+
+actor ClaudeAccessibilityBootstrapper {
+    private let logger = Logger(
+        subsystem: "com.thierryai.ReasonDeck",
+        category: "claude-accessibility"
+    )
+    private var lastPreparedPID: pid_t?
+
+    func prepare(pid: pid_t) {
+        guard ClaudeAccessibilityBootstrapPolicy.shouldPrepare(
+            pid: pid,
+            lastPreparedPID: lastPreparedPID,
+            accessibilityTrusted: AXIsProcessTrusted()
+        ) else { return }
+
+        let application = AXUIElementCreateApplication(pid)
+        let manualResult = AXUIElementSetAttributeValue(
+            application,
+            "AXManualAccessibility" as CFString,
+            kCFBooleanTrue
+        )
+        let enhancedResult: AXError = manualResult == .success ? .success : AXUIElementSetAttributeValue(
+            application,
+            "AXEnhancedUserInterface" as CFString,
+            kCFBooleanTrue
+        )
+        guard enhancedResult == .success else {
+            logger.error("Claude Accessibility bootstrap failed pid=\(pid, privacy: .public) manualError=\(manualResult.rawValue, privacy: .public) enhancedError=\(enhancedResult.rawValue, privacy: .public)")
+            return
+        }
+        lastPreparedPID = pid
+        logger.info("Claude Accessibility bootstrap completed pid=\(pid, privacy: .public)")
     }
 }
 
@@ -297,11 +355,48 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
         )
         accessibilityPreparationAttemptedPID = invocation.pid
         if enhancedResult == .success {
-            try await Task.sleep(for: .milliseconds(500))
+            try await waitForCapturedWindowAfterPreparation(invocation: invocation)
         } else {
             logger.error("Could not enable Claude web accessibility manualError=\(manualResult.rawValue, privacy: .public) enhancedError=\(enhancedResult.rawValue, privacy: .public)")
         }
         try validate(invocation, requiresCodeSurface: false)
+    }
+
+    private func waitForCapturedWindowAfterPreparation(
+        invocation: HotkeyInvocation
+    ) async throws {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: deadline)
+        while true {
+            guard AXIsProcessTrusted() else { throw SwitchFailure.permissionMissing }
+            guard let running = NSWorkspace.shared.frontmostApplication,
+                  running.bundleIdentifier == AppConstants.claudeDesktopBundleID,
+                  running.processIdentifier == invocation.pid
+            else { throw SwitchFailure.targetChanged(ApplicationTarget.claudeCode.displayName) }
+
+            let application = AXUIElementCreateApplication(invocation.pid)
+            let observedWindowID = AXWindowIdentity.focusedWindowID(
+                application: application,
+                pid: invocation.pid
+            )
+            switch ClaudeAccessibilityPreparationPolicy.windowState(
+                capturedWindowID: invocation.focusedWindowID,
+                observedWindowID: observedWindowID
+            ) {
+            case .ready:
+                return
+            case .changed:
+                throw SwitchFailure.targetChanged(ApplicationTarget.claudeCode.displayName)
+            case .awaitingRepublish:
+                guard clock.now < end else {
+                    throw SwitchFailure.targetChanged(ApplicationTarget.claudeCode.displayName)
+                }
+                // Enabling Chromium Accessibility can temporarily unpublish the
+                // focused AX window. Wait only for the captured native window ID;
+                // a different window still aborts immediately.
+                try await Task.sleep(for: pollInterval)
+            }
+        }
     }
 
     private enum Surface {

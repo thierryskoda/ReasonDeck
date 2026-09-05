@@ -7,12 +7,12 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 ### Fixed
 
 - Recognize Claude Code's renamed `Model: <name>` title on both the closed composer popup and opened model menu. On Claude Desktop 1.46388.3, ReasonDeck could visibly open the picker, then wait for its obsolete bare title and fail with an accessibility error.
-- Discover Claude's already-exposed composer before requesting manual web Accessibility, preventing the first Claude shortcut after a ReasonDeck relaunch from aborting when Chromium rebuilt its window identity during unnecessary initialization.
+- Initialize Claude's web Accessibility bridge when Claude or ReasonDeck launches, outside shortcut transactions, then discover the already-exposed composer when a shortcut is pressed. This avoids binding a shortcut while Chromium is rebuilding its native window.
 
 ### Safety
 
 - Match both version-specific forms as exact full titles paired with an exact closed-set model name, refusing partial or trailing-copy variants and remaining independent of model order.
-- Request manual web Accessibility only after bounded discovery reports a missing surface. Never rebind a shortcut to a different window identity after capture.
+- Initialize each Claude process at most once and collect no chat content. During switching, never rebind a shortcut to a different window identity; missing-surface preparation remains a fail-closed fallback.
 
 ## 0.2.4 - 2026-09-01
 
