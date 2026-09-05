@@ -7,11 +7,21 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 ### Added
 
 - Show each supported app's installed version and local compatibility health in Settings: exact signed-live versions are **Verified**, successful switches on other versions are **Working, unverified**, and picker-contract failures are **Needs update**.
+- Recognize Antigravity's exact `Gemini 3.8 Flash` and `Low` labels, plus its exact `Fast`-badged Medium Flash rows without exposing `Fast` as a reasoning effort.
+
+### Fixed
+
+- Stop Antigravity from reporting the requested effort when it actually selected a same-model row with a different effort. ReasonDeck now checks one exact combined row and independently verifies the final model and effort.
+
+### Changed
+
+- Give first-time and newly enabled Antigravity shortcuts combinations exposed by Antigravity 2.8.1. Existing saved shortcuts remain unchanged and unavailable combinations fail without substitution.
 
 ### Safety
 
 - Keep version status advisory instead of accepting or rejecting an app by version alone. Every switch still uses the adapter's exact structural preflight and final-state verification, and runtime observations are kept only in memory for the exact app process and version.
 - Do not treat permission, focus, configuration, missing-composer, entitlement, or unavailable-model failures as evidence that an app version is incompatible.
+- Bind Antigravity's Command-Slash picker, row action, dismissal, and final verification to the originally captured process and window, and read only recognized labels from allowlisted control roles.
 
 ## 0.2.5 - 2026-09-05
 

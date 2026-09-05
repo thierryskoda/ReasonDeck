@@ -34,7 +34,7 @@ private func isolatedDefaults() -> UserDefaults {
     #expect(economical.shortcut == economicalShortcut)
     #expect(economical.chatGPT == ChatGPTSelection(model: .luna56, effort: .high))
     #expect(economical.cursor == CursorSelection(model: .composer25Fast, effort: .high))
-    #expect(economical.antigravity == AntigravitySelection(model: .gemini37Flash, effort: .high))
+    #expect(economical.antigravity == AntigravitySelection(model: .gemini37Flash, effort: .medium))
     #expect(economical.claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .medium))
 
     let premiumShortcut = try KeyboardShortcut(
@@ -46,7 +46,7 @@ private func isolatedDefaults() -> UserDefaults {
     #expect(premium.shortcut == premiumShortcut)
     #expect(premium.chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
     #expect(premium.cursor == CursorSelection(model: .gpt56Sol, effort: .high))
-    #expect(premium.antigravity == AntigravitySelection(model: .gemini31Pro, effort: .high))
+    #expect(premium.antigravity == AntigravitySelection(model: .claudeOpus46, effort: .thinking))
     #expect(premium.claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
 
     #expect(ProfileStore(defaults: defaults).entries == store.entries)
@@ -62,6 +62,19 @@ private func isolatedDefaults() -> UserDefaults {
     #expect(
         store.entry(id: id)?.claudeCode
             == ClaudeCodeSelection(model: .sonnet5, effort: .medium)
+    )
+}
+
+@MainActor
+@Test func enablingAntigravityUsesAnExactVersion281Row() throws {
+    let store = ProfileStore(defaults: isolatedDefaults())
+    let id = try #require(store.addEntry())
+
+    try store.setTarget(.antigravity, enabled: true, for: id)
+
+    #expect(
+        store.entry(id: id)?.antigravity
+            == AntigravitySelection(model: .gemini31Pro, effort: .low)
     )
 }
 

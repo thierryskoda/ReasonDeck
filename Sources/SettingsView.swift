@@ -532,7 +532,7 @@ struct SettingsView: View {
 
     private func antigravityEffortBinding(for id: UUID) -> Binding<AntigravityEffort> {
         Binding(
-            get: { store.entry(id: id)?.antigravity?.effort ?? .medium },
+            get: { store.entry(id: id)?.antigravity?.effort ?? .low },
             set: { store.setAntigravityEffort($0, for: id) }
         )
     }

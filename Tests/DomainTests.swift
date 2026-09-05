@@ -18,10 +18,91 @@ import Testing
     ])
     #expect(CursorEffort.allCases.map(\.rawValue) == ["Low", "Medium", "None", "High"])
     #expect(AntigravityModel.allCases.map(\.rawValue) == [
-        "Gemini 3.7 Flash", "Gemini 3.6 Flash", "Gemini 3.5 Flash", "Gemini 3.1 Pro",
+        "Gemini 3.8 Flash", "Gemini 3.7 Flash", "Gemini 3.6 Flash", "Gemini 3.5 Flash", "Gemini 3.1 Pro",
         "Claude Sonnet 4.6", "Claude Opus 4.6", "GPT-OSS 120B"
     ])
-    #expect(AntigravityEffort.allCases.map(\.rawValue) == ["High", "Medium", "None", "(Thinking)", "(Medium)"])
+    #expect(AntigravityEffort.allCases.map(\.rawValue) == ["High", "Medium", "Low", "None", "(Thinking)", "(Medium)"])
+}
+
+@Test func antigravityPickerStateAcceptsOnlyExactClosedSelectionLabels() {
+    let requested = AntigravitySelection(model: .claudeOpus46, effort: .thinking)
+
+    #expect(AntigravityPickerState.menuItemTitle(for: requested) == "Claude Opus 4.6 (Thinking)")
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Select model, current: Claude Opus 4.6 (Thinking)"
+    ) == requested)
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Select model, current: Claude Opus 4.6 (Thinking) preview"
+    ) == nil)
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Claude Opus 4.6 (Thinking)"
+    ) == nil)
+}
+
+@Test func antigravityPickerStateRecognizesVersion281LabelsExactly() {
+    #expect(AntigravityPickerState.selection(
+        fromMenuItemTitle: "Gemini 3.8 Flash Medium Fast"
+    ) == AntigravitySelection(model: .gemini38Flash, effort: .medium))
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Select model, current: Gemini 3.8 Flash Medium"
+    ) == AntigravitySelection(model: .gemini38Flash, effort: .medium))
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Select model, current: Gemini 3.1 Pro Low"
+    ) == AntigravitySelection(model: .gemini31Pro, effort: .low))
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Select model, current: Gemini 3.8 Flash Medium Fast"
+    ) == nil)
+}
+
+@Test func antigravityPickerPlanNeverSubstitutesAVisibleLowRowForRequestedHigh() {
+    let requested = AntigravitySelection(model: .gemini31Pro, effort: .high)
+    let plan = AntigravityPickerState.plan(
+        currentTitle: "Select model, current: Claude Opus 4.6 (Thinking)",
+        menuItemTitles: [
+            "Gemini 3.1 Pro Low",
+            "Claude Opus 4.6 (Thinking)",
+            "GPT-OSS 120B (Medium)"
+        ],
+        requested: requested
+    )
+
+    #expect(plan == .failure(.modelUnavailable("Gemini 3.1 Pro High")))
+}
+
+@Test func antigravityPickerPlanTargetsOneExactCombinedRow() {
+    let requested = AntigravitySelection(model: .claudeOpus46, effort: .thinking)
+    let plan = AntigravityPickerState.plan(
+        currentTitle: "Select model, current: GPT-OSS 120B (Medium)",
+        menuItemTitles: [
+            "Claude Opus 4.6 (Thinking)",
+            "Claude Opus 4.6 (Thinking) preview",
+            "GPT-OSS 120B (Medium)"
+        ],
+        requested: requested
+    )
+
+    #expect(plan == .pressMenuItem(titled: "Claude Opus 4.6 (Thinking)"))
+}
+
+@Test func antigravityPickerPlanMapsOnlyTheKnownFastBadgeToMedium() {
+    let requested = AntigravitySelection(model: .gemini37Flash, effort: .medium)
+    #expect(AntigravityPickerState.plan(
+        currentTitle: "Select model, current: Gemini 3.1 Pro Low",
+        menuItemTitles: ["Gemini 3.7 Flash Medium Fast", "Gemini 3.1 Pro Low"],
+        requested: requested
+    ) == .pressMenuItem(titled: "Gemini 3.7 Flash Medium Fast"))
+    #expect(AntigravityPickerState.selection(
+        fromMenuItemTitle: "Gemini 3.7 Flash Medium Faster"
+    ) == nil)
+}
+
+@Test func antigravityPickerPlanFailsClosedForDuplicateExactRows() {
+    let requested = AntigravitySelection(model: .claudeOpus46, effort: .thinking)
+    #expect(AntigravityPickerState.plan(
+        currentTitle: "Select model, current: GPT-OSS 120B (Medium)",
+        menuItemTitles: ["Claude Opus 4.6 (Thinking)", "Claude Opus 4.6 (Thinking)"],
+        requested: requested
+    ) == .failure(.accessibility("Antigravity exposed multiple exact picker rows.")))
 }
 
 @Test func keyboardShortcutsRequireAProtectiveModifier() throws {

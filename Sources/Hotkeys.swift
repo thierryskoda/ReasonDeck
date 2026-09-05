@@ -204,6 +204,24 @@ enum TrustedTargetAction {
         try validate(invocation)
     }
 
+    /// Antigravity documents Command-Slash by character. Preserve that shortcut across keyboard
+    /// layouts without letting adapters bypass the captured-window validation or event sentinel.
+    static func postFocusedCommandSlash(invocation: HotkeyInvocation) throws {
+        try validate(invocation)
+        var slash = Array("/".utf16)
+        guard let down = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true),
+              let up = CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: false)
+        else { throw SwitchFailure.accessibility("Could not create Antigravity’s model-picker shortcut.") }
+        for event in [down, up] {
+            event.keyboardSetUnicodeString(stringLength: slash.count, unicodeString: &slash)
+            event.flags = .maskCommand
+            event.setIntegerValueField(.eventSourceUserData, value: SyntheticEventMarker.value)
+        }
+        down.post(tap: .cghidEventTap)
+        up.post(tap: .cghidEventTap)
+        try validate(invocation)
+    }
+
     static func click(
         frame: CGRect,
         invocation: HotkeyInvocation,

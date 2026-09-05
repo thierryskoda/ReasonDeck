@@ -39,8 +39,8 @@ On a first installation, the current source creates two editable starter shortcu
 
 | Shortcut | ChatGPT | Claude Desktop | Cursor | Antigravity |
 | --- | --- | --- | --- | --- |
-| `⌘⇧1` economical | 5.6 Luna / High | Sonnet 5 / Medium | Composer 2.5 Fast / High | Gemini 3.7 Flash / High |
-| `⌘⇧2` premium | 5.6 Sol / High | Sonnet 5 / High | GPT-5.6 Sol / High | Gemini 3.1 Pro / High |
+| `⌘⇧1` economical | 5.6 Luna / High | Sonnet 5 / Medium | Composer 2.5 Fast / High | Gemini 3.7 Flash / Medium |
+| `⌘⇧2` premium | 5.6 Sol / High | Sonnet 5 / High | GPT-5.6 Sol / High | Claude Opus 4.6 / (Thinking) |
 
 Existing saved configurations are left unchanged. An explicit **Reset to Empty** also stays empty.
 
@@ -49,6 +49,10 @@ Claude Desktop 1.40609.0 passed signed live switching on a paid account in Chat,
 ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 
 ChatGPT efforts currently recognized by source: Extra High, Medium, None, Light, Ultra, High, and Max.
+
+Antigravity models currently recognized by source: Gemini 3.8 Flash, Gemini 3.7 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonnet 4.6, Claude Opus 4.6, and GPT-OSS 120B. ReasonDeck matches the exact combined model-and-effort row currently exposed by Antigravity; it does not treat another effort for the same model as success.
+
+Antigravity efforts currently recognized by source: High, Medium, Low, None, (Thinking), and (Medium). The exact `Fast` badge on current Medium Flash rows is treated as row presentation and is not exposed as a separate reasoning effort; the reopened picker's canonical current title must still verify Medium.
 
 ## Requirements and compatibility
 
@@ -78,7 +82,7 @@ Settings labels an exact version **Verified** only when that version has recorde
 
 ReasonDeck stores only shortcut, model, and reasoning preferences in macOS `UserDefaults`. Accessibility is used to find and verify the active app's controls; Input Monitoring is used for the shortcuts you configure.
 
-The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), and [ADR-004](ADR-004-cursor-unread-navigation.md). Runtime compatibility status is documented in [ADR-006](ADR-006-runtime-compatibility-health.md).
+The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), [ADR-004](ADR-004-cursor-unread-navigation.md), and [ADR-005](ADR-005-antigravity-model-picker.md). Runtime compatibility status is documented in [ADR-006](ADR-006-runtime-compatibility-health.md).
 
 ## Troubleshooting
 

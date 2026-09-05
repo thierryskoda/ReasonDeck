@@ -28,8 +28,6 @@ final class AntigravityLiveTest: XCTestCase {
             return
         }
 
-        let client = SystemAntigravityUIClient()
-        let selection = AntigravitySelection(model: .claudeOpus46, effort: .thinking)
         let invocation = HotkeyInvocation(
             entryID: UUID(),
             target: .antigravity,
@@ -37,8 +35,25 @@ final class AntigravityLiveTest: XCTestCase {
             focusedWindowID: identity.id,
             identitySource: identity.source
         )
+        let client = SystemAntigravityUIClient()
+        let initial = try await client.observePickerState(invocation: invocation)
+        guard let alternate = initial.available.first(where: { $0 != initial.current }) else {
+            XCTFail("Antigravity did not expose a second exact model-and-effort row.")
+            return
+        }
 
-        let outcome = await client.apply(selection, invocation: invocation)
-        XCTAssertEqual(outcome, .applied(model: selection.model, effort: selection.effort))
+        var liveError: (any Error)?
+        do {
+            let outcome = await client.apply(alternate, invocation: invocation)
+            XCTAssertEqual(outcome, .applied(model: alternate.model, effort: alternate.effort))
+            let observed = try await client.observePickerState(invocation: invocation)
+            XCTAssertEqual(observed.current, alternate)
+        } catch {
+            liveError = error
+        }
+
+        let restore = await client.apply(initial.current, invocation: invocation)
+        XCTAssertEqual(restore, .applied(model: initial.current.model, effort: initial.current.effort))
+        if let liveError { throw liveError }
     }
 }
