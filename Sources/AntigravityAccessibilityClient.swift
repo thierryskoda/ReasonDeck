@@ -237,12 +237,9 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
     }
 
     private func dismissOpenPicker(invocation: HotkeyInvocation) async throws {
-        guard try openPickerSnapshot(invocation: invocation) != nil else {
-            throw SwitchFailure.verificationMismatch(
-                expected: "verified Antigravity model picker",
-                observed: "picker disappeared before dismissal"
-            )
-        }
+        // Antigravity may close the verified picker itself after its current title is read.
+        // An already-closed picker is the desired terminal UI state; never send Escape blindly.
+        guard try openPickerSnapshot(invocation: invocation) != nil else { return }
         try TrustedTargetAction.postFocusedKey(keyCode: 53, flags: [], invocation: invocation)
         try await waitForPickerToClose(invocation: invocation)
     }
