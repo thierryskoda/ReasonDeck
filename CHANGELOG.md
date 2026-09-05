@@ -8,6 +8,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 - Show each supported app's installed version and local compatibility health in Settings: exact signed-live versions are **Verified**, successful switches on other versions are **Working, unverified**, and picker-contract failures are **Needs update**.
 - Recognize Antigravity's exact `Gemini 3.8 Flash` and `Low` labels, plus its exact `Fast`-badged Medium Flash rows without exposing `Fast` as a reasoning effort.
+- Record signed-live compatibility for ChatGPT 26.803.61601 and Antigravity 2.8.1.
 
 ### Fixed
 

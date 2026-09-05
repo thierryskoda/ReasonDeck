@@ -11,15 +11,17 @@ private final class CompatibilityInventoryStub {
 }
 
 @Test func exactSignedLiveVersionsAreCertifiedWithoutAcceptingNearbyVersions() {
+    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.803.61601") == .verified)
     #expect(CompatibilityPolicy.certification(for: .claudeCode, version: "1.40609.0") == .verified)
     #expect(CompatibilityPolicy.certification(for: .claudeCode, version: "1.46388.4") == .verified)
     #expect(CompatibilityPolicy.certification(for: .cursor, version: "3.15.6") == .verified)
     #expect(CompatibilityPolicy.certification(for: .cursor, version: "3.16.29") == .verified)
+    #expect(CompatibilityPolicy.certification(for: .antigravity, version: "2.8.1") == .verified)
 
+    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.803.61602") == .unverified)
     #expect(CompatibilityPolicy.certification(for: .claudeCode, version: "1.46388.5") == .unverified)
     #expect(CompatibilityPolicy.certification(for: .cursor, version: "3.16.30") == .unverified)
-    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "1.0") == .unverified)
-    #expect(CompatibilityPolicy.certification(for: .antigravity, version: "1.0") == .unverified)
+    #expect(CompatibilityPolicy.certification(for: .antigravity, version: "2.8.2") == .unverified)
 }
 
 @Test func statusSeparatesCertificationFromObservedRuntimeHealth() {
@@ -139,7 +141,7 @@ private final class CompatibilityInventoryStub {
 @Test func healthTracksOnlyContractResultsAndInvalidatesRelaunchedProcesses() {
     let inventory = CompatibilityInventoryStub(items: [
         .antigravity: CompatibilityInventoryItem(
-            version: "2.8.1",
+            version: "2.8.2",
             processIdentifier: 200,
             isInstalled: true
         )
@@ -158,7 +160,7 @@ private final class CompatibilityInventoryStub {
     #expect(health.snapshots.first { $0.target == .antigravity }?.status == .workingUnverified)
 
     inventory.items[.antigravity] = CompatibilityInventoryItem(
-        version: "2.8.1",
+        version: "2.8.2",
         processIdentifier: 201,
         isInstalled: true
     )
