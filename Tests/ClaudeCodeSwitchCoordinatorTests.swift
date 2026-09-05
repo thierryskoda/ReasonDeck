@@ -285,6 +285,24 @@ private let claudeInvocation = HotkeyInvocation(
     )
 }
 
+@Test func claudeWebAccessibilityPreparationIsAMissingSurfaceFallbackOnly() {
+    #expect(
+        ClaudeAccessibilityPreparationPolicy.shouldPrepare(
+            after: .claudeCodeSurfaceNotFound
+        )
+    )
+    #expect(
+        !ClaudeAccessibilityPreparationPolicy.shouldPrepare(
+            after: .targetChanged("Claude Desktop")
+        )
+    )
+    #expect(
+        !ClaudeAccessibilityPreparationPolicy.shouldPrepare(
+            after: .accessibility("ambiguous controls")
+        )
+    )
+}
+
 @Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)

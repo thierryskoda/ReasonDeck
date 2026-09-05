@@ -172,6 +172,13 @@ enum ClaudeMenuSelection {
     }
 }
 
+enum ClaudeAccessibilityPreparationPolicy {
+    static func shouldPrepare(after failure: SwitchFailure) -> Bool {
+        if case .claudeCodeSurfaceNotFound = failure { return true }
+        return false
+    }
+}
+
 protocol ClaudeCodeUIClient: Sendable {
     func selectModel(_ model: ClaudeCodeModel, invocation: HotkeyInvocation) async throws -> String
     func selectEffort(_ effort: ClaudeCodeEffort, invocation: HotkeyInvocation) async throws -> String
@@ -243,8 +250,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
     private var accessibilityPreparationAttemptedPID: pid_t?
 
     func selectModel(_ model: ClaudeCodeModel, invocation: HotkeyInvocation) async throws -> String {
-        try await prepareWebAccessibility(invocation: invocation)
-        switch try await surface(invocation: invocation) {
+        switch try await preparedSurface(invocation: invocation) {
         case .chat:
             return try await chooseChatModel(model, invocation: invocation)
         case .code:
@@ -253,12 +259,25 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
     }
 
     func selectEffort(_ effort: ClaudeCodeEffort, invocation: HotkeyInvocation) async throws -> String {
-        try await prepareWebAccessibility(invocation: invocation)
-        switch try await surface(invocation: invocation) {
+        switch try await preparedSurface(invocation: invocation) {
         case .chat:
             return try await chooseChatEffort(effort, invocation: invocation)
         case .code:
             return try await chooseCodeEffort(effort, invocation: invocation)
+        }
+    }
+
+    private func preparedSurface(invocation: HotkeyInvocation) async throws -> Surface {
+        do {
+            return try await surface(invocation: invocation)
+        } catch let failure as SwitchFailure
+            where ClaudeAccessibilityPreparationPolicy.shouldPrepare(after: failure) {
+            // Current Claude builds often expose the complete composer tree
+            // without manual preparation. Setting this attribute eagerly can
+            // rebuild Chromium's AX window identity after shortcut capture, so
+            // use it only when bounded discovery proved the tree is absent.
+            try await prepareWebAccessibility(invocation: invocation)
+            return try await surface(invocation: invocation)
         }
     }
 
