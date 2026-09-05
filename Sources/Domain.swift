@@ -48,6 +48,15 @@ enum ApplicationTarget: String, CaseIterable, Codable, Hashable, Sendable, Ident
         case .antigravity: "sparkles"
         }
     }
+
+    var bundleIdentifier: String {
+        switch self {
+        case .chatGPT: AppConstants.chatGPTBundleID
+        case .claudeCode: AppConstants.claudeDesktopBundleID
+        case .cursor: AppConstants.cursorBundleID
+        case .antigravity: AppConstants.antigravityBundleID
+        }
+    }
 }
 
 /// The single runtime support boundary. Persisted assignments remain intact when a

@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var store: ProfileStore
     @Bindable var readiness: PermissionReadiness
+    @Bindable var compatibilityHealth: CompatibilityHealth
     let beginShortcutRecording: (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool
     let cancelShortcutRecording: () -> Void
     @State private var assignmentError: String?
@@ -13,6 +14,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             readinessSection
+            compatibilitySection
 
             if store.isValid {
                 Picker("Shortcut type", selection: $selectedTab) {
@@ -98,6 +100,48 @@ struct SettingsView: View {
 
     private var permissionsAreReady: Bool {
         readiness.snapshot.accessibilityGranted && readiness.snapshot.inputMonitoringGranted
+    }
+
+    private var compatibilitySection: some View {
+        Section {
+            ForEach(compatibilityHealth.snapshots) { snapshot in
+                HStack(spacing: 12) {
+                    Label(snapshot.target.displayName, systemImage: snapshot.target.systemImage)
+
+                    Spacer(minLength: 12)
+
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Label(snapshot.status.title, systemImage: snapshot.status.systemImage)
+                            .foregroundStyle(compatibilityColor(snapshot.status))
+                        Text(snapshot.detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityIdentifier("compatibility-\(snapshot.target.rawValue)")
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("Verified means that exact app version passed a signed live check. Unknown versions still use strict picker checks and stop instead of guessing when the UI changed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Spacer(minLength: 12)
+
+                Button("Refresh") { compatibilityHealth.refresh() }
+            }
+        } header: {
+            Text("App Compatibility")
+        }
+    }
+
+    private func compatibilityColor(_ status: CompatibilityStatus) -> Color {
+        switch status {
+        case .verified: .green
+        case .workingUnverified: .blue
+        case .needsUpdate: .orange
+        case .unknown, .notInstalled: .secondary
+        }
     }
 
     private var permissionDetails: some View {

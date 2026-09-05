@@ -25,6 +25,8 @@ Version 0.2.5 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Ch
 
 Official binaries are signed with Developer ID and notarized by Apple. Do not install a copy that requires a Gatekeeper bypass or a terminal command.
 
+The compatibility-health panel described below is in the current source and is not included in the 0.2.5 download.
+
 ## What it does
 
 - Creates any number of model-and-effort shortcuts.
@@ -33,6 +35,7 @@ Official binaries are signed with Developer ID and notarized by Apple. Do not in
 - Passes the same keys through normally in every other app.
 - Rejects shortcuts without Command, Option, or Control and prevents duplicates.
 - Reports unavailable choices instead of guessing or silently substituting another model.
+- Shows the detected version and local compatibility health for every supported app in Settings.
 
 On a first installation, the current source creates two editable starter shortcuts:
 
@@ -64,6 +67,8 @@ Cursor support expects an idle Agent or Chat composer with its model chip visibl
 
 Compilation and unit tests are not compatibility proof. Each supported app version needs a signed live check before it is claimed for a release.
 
+Settings labels an exact version **Verified** only when that version has recorded signed-live evidence. A successful switch on another version becomes **Working, unverified** for that running app process. **Unknown** does not mean blocked: ReasonDeck still tries its strict adapter contract and never selects a picker row until the required surface, menu ownership, and exact label are verified. A picker-contract failure becomes **Needs update** for only that process and version; permission, focus, missing-composer, entitlement, and unavailable-model errors do not change compatibility health. Runtime observations are not persisted and reset when the app quits or changes version.
+
 ## Privacy and safety
 
 - No network implementation, analytics, or account credentials.
@@ -75,7 +80,7 @@ Compilation and unit tests are not compatibility proof. Each supported app versi
 
 ReasonDeck stores only shortcut, model, and reasoning preferences in macOS `UserDefaults`. Accessibility is used to find and verify the active app's controls; Input Monitoring is used for the shortcuts you configure.
 
-The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), and [ADR-004](ADR-004-cursor-unread-navigation.md).
+The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), and [ADR-004](ADR-004-cursor-unread-navigation.md). Runtime compatibility status is documented in [ADR-006](ADR-006-runtime-compatibility-health.md).
 
 ## Troubleshooting
 
@@ -86,6 +91,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 - **A shortcut will not save:** Include Command, Option, or Control. Escape cancels recording, unmodified Delete clears it, and duplicate combinations are rejected.
 - **Cursor's model control is unavailable:** Open the Agents sidebar and leave an idle Agent or Chat composer visible.
 - **A model is unavailable:** The account or app no longer exposes the exact saved label. ReasonDeck does not substitute a similar model.
+- **Compatibility says Needs update:** Retry once with the supported idle composer visible. If it persists for that app version, its Accessibility picker contract has changed and ReasonDeck needs a compatibility update; it will not guess at a replacement control.
 - **Saved shortcuts are invalid:** Open Settings and choose **Reset to Empty**. Invalid persisted configuration stays disabled until you explicitly reset it.
 
 ## Build from source

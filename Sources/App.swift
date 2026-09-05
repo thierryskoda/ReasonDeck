@@ -10,6 +10,7 @@ final class SettingsWindowController {
     func show(
         store: ProfileStore,
         readiness: PermissionReadiness,
+        compatibilityHealth: CompatibilityHealth,
         beginShortcutRecording: @escaping (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool,
         cancelShortcutRecording: @escaping () -> Void
     ) {
@@ -17,14 +18,15 @@ final class SettingsWindowController {
             let controller = NSHostingController(rootView: SettingsView(
                 store: store,
                 readiness: readiness,
+                compatibilityHealth: compatibilityHealth,
                 beginShortcutRecording: beginShortcutRecording,
                 cancelShortcutRecording: cancelShortcutRecording
             ))
             let window = NSWindow(contentViewController: controller)
             window.title = "Shortcuts"
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-            window.setContentSize(NSSize(width: 680, height: 560))
-            window.minSize = NSSize(width: 640, height: 480)
+            window.setContentSize(NSSize(width: 680, height: 700))
+            window.minSize = NSSize(width: 640, height: 560)
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("ShortcutSettingsWindow")
             window.center()
@@ -45,18 +47,14 @@ final class MenuBarViewModel {
     private var hotkeyTap: HotkeyEventTap?
     @ObservationIgnored private var activationObserver: NSObjectProtocol?
     @ObservationIgnored private var workspaceLaunchObserver: NSObjectProtocol?
+    @ObservationIgnored private var workspaceTerminateObserver: NSObjectProtocol?
     let store: ProfileStore
     let readiness = PermissionReadiness()
+    let compatibilityHealth = CompatibilityHealth()
     var isSwitching = false
     var status: OperationStatus = .ready
     var permissionState: PermissionState { readiness.state }
     var trusted: Bool { readiness.snapshot.accessibilityGranted }
-    var chatGPTVersion: String? {
-        guard let url = NSRunningApplication.runningApplications(withBundleIdentifier: AppConstants.chatGPTBundleID).first?.bundleURL,
-              let bundle = Bundle(url: url) else { return nil }
-        return bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-    }
-
     init(store: ProfileStore) {
         self.store = store
         hotkeyTap = HotkeyEventTap { [weak self] capture in
@@ -81,12 +79,31 @@ final class MenuBarViewModel {
             queue: .main
         ) { [weak self] notification in
             guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
-                    as? NSRunningApplication,
-                  application.bundleIdentifier == AppConstants.claudeDesktopBundleID
-            else { return }
+                    as? NSRunningApplication else { return }
             Task { @MainActor in
-                self?.prepareClaudeAccessibility(pid: application.processIdentifier)
+                guard let self else { return }
+                if ApplicationTarget.allCases.contains(where: {
+                    $0.bundleIdentifier == application.bundleIdentifier
+                }) {
+                    self.compatibilityHealth.refresh()
+                }
+                if application.bundleIdentifier == AppConstants.claudeDesktopBundleID {
+                    self.prepareClaudeAccessibility(pid: application.processIdentifier)
+                }
             }
+        }
+        workspaceTerminateObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didTerminateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey]
+                    as? NSRunningApplication,
+                  ApplicationTarget.allCases.contains(where: {
+                      $0.bundleIdentifier == application.bundleIdentifier
+                  })
+            else { return }
+            Task { @MainActor in self?.compatibilityHealth.refresh() }
         }
         prepareClaudeAccessibilityForRunningApp()
         let firstRunKey = ProfileStore.didOpenInitialSettingsKey
@@ -211,16 +228,24 @@ final class MenuBarViewModel {
             switch result {
             case .success(let applied, let title, let elapsed):
                 status = .success(title)
+                compatibilityHealth.recordWorking(for: applied.target)
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: .success, failure: nil, elapsed: elapsed))
             case .alreadyApplied(let applied, let title):
                 status = .already(title)
+                compatibilityHealth.recordWorking(for: applied.target)
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: .alreadyApplied, failure: nil, elapsed: start.duration(to: clock.now)))
             case .partialFailure(let applied, let title, let failure):
                 status = .partial(title: title, message: failure.message)
+                if CompatibilityPolicy.isContractFailure(failure.diagnosticCode) {
+                    compatibilityHealth.recordFailure(failure.diagnosticCode, for: applied.target)
+                } else {
+                    compatibilityHealth.recordWorking(for: applied.target)
+                }
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: .partialFailure, failure: failure.diagnosticCode, elapsed: start.duration(to: clock.now)))
                 NSSound.beep()
             case .failure(let applied, let failure):
                 status = failure == .busy ? .busy : .failure(failure.message)
+                compatibilityHealth.recordFailure(failure.diagnosticCode, for: applied.target)
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: failure == .busy ? .busy : .failure, failure: failure.diagnosticCode, elapsed: start.duration(to: clock.now)))
                 NSSound.beep()
             }
@@ -238,14 +263,9 @@ final class MenuBarViewModel {
     }
 
     private func targetVersion(_ target: ApplicationTarget) -> String {
-        let bundleID: String
-        switch target {
-        case .chatGPT: bundleID = AppConstants.chatGPTBundleID
-        case .claudeCode: bundleID = AppConstants.claudeDesktopBundleID
-        case .cursor: bundleID = AppConstants.cursorBundleID
-        case .antigravity: bundleID = AppConstants.antigravityBundleID
-        }
-        guard let url = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.bundleURL,
+        guard let url = NSRunningApplication.runningApplications(
+            withBundleIdentifier: target.bundleIdentifier
+        ).first?.bundleURL,
               let bundle = Bundle(url: url)
         else { return "unknown" }
         return bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
@@ -302,9 +322,11 @@ final class MenuBarViewModel {
 
     func openSettings() {
         refreshPermissions()
+        compatibilityHealth.refresh()
         settingsWindowController.show(
             store: store,
             readiness: readiness,
+            compatibilityHealth: compatibilityHealth,
             beginShortcutRecording: { [weak self] handler in
                 self?.beginShortcutRecording(handler) ?? false
             },
@@ -330,6 +352,7 @@ final class MenuBarViewModel {
             _ = hotkeyTap?.start()
         }
         refreshPermissions()
+        compatibilityHealth.refresh()
         prepareClaudeAccessibilityForRunningApp()
     }
     func refreshPermissions() {
@@ -354,6 +377,9 @@ final class MenuBarViewModel {
         if let activationObserver { NotificationCenter.default.removeObserver(activationObserver) }
         if let workspaceLaunchObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(workspaceLaunchObserver)
+        }
+        if let workspaceTerminateObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(workspaceTerminateObserver)
         }
     }
 
@@ -417,7 +443,6 @@ struct MenuBarContent: View {
                 ? model.permissionState.message
                 : "Installation required"
         )
-        if let version = model.chatGPTVersion { Text("ChatGPT \(version)") }
         Label(model.status.message, systemImage: model.status.systemImage).lineLimit(3)
         Divider()
         Button("Quit") { model.stop(); NSApplication.shared.terminate(nil) }
