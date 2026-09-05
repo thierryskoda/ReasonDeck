@@ -2,6 +2,17 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Added
+
+- Show each supported app's installed version and local compatibility health in Settings: exact signed-live versions are **Verified**, successful switches on other versions are **Working, unverified**, and picker-contract failures are **Needs update**.
+
+### Safety
+
+- Keep version status advisory instead of accepting or rejecting an app by version alone. Every switch still uses the adapter's exact structural preflight and final-state verification, and runtime observations are kept only in memory for the exact app process and version.
+- Do not treat permission, focus, configuration, missing-composer, entitlement, or unavailable-model failures as evidence that an app version is incompatible.
+
 ## 0.2.5 - 2026-09-05
 
 ### Fixed

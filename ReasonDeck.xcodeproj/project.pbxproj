@@ -32,6 +32,8 @@
 		A10000000000000000000024 /* ChatGPTSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000027 /* ChatGPTSurface.swift */; };
 		A10000000000000000000025 /* TargetDispatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000028 /* TargetDispatcherTests.swift */; };
 		A10000000000000000000026 /* ChatGPTSurfaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000029 /* ChatGPTSurfaceTests.swift */; };
+		A10000000000000000000027 /* CompatibilityHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000030 /* CompatibilityHealth.swift */; };
+		A10000000000000000000028 /* CompatibilityHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000031 /* CompatibilityHealthTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -74,6 +76,8 @@
 		B10000000000000000000027 /* ChatGPTSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTSurface.swift; sourceTree = "<group>"; };
 		B10000000000000000000028 /* TargetDispatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetDispatcherTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000029 /* ChatGPTSurfaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTSurfaceTests.swift; sourceTree = "<group>"; };
+		B10000000000000000000030 /* CompatibilityHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilityHealth.swift; sourceTree = "<group>"; };
+		B10000000000000000000031 /* CompatibilityHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilityHealthTests.swift; sourceTree = "<group>"; };
 		D68571A1C7F941A7CA128D96 /* AntigravityAccessibilityClient.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AntigravityAccessibilityClient.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -112,6 +116,7 @@
 			children = (
 				B10000000000000000000001 /* App.swift */,
 				B10000000000000000000002 /* Domain.swift */,
+				B10000000000000000000030 /* CompatibilityHealth.swift */,
 				B10000000000000000000003 /* AccessibilityClient.swift */,
 				B10000000000000000000004 /* SystemAccessibilityClient.swift */,
 				B10000000000000000000026 /* TargetDispatcher.swift */,
@@ -145,6 +150,7 @@
 				B10000000000000000000013 /* ProfileSwitchCoordinatorTests.swift */,
 				B10000000000000000000028 /* TargetDispatcherTests.swift */,
 				B10000000000000000000029 /* ChatGPTSurfaceTests.swift */,
+				B10000000000000000000031 /* CompatibilityHealthTests.swift */,
 				B10000000000000000000021 /* ClaudeCodeSwitchCoordinatorTests.swift */,
 				B10000000000000000000023 /* CursorSwitchCoordinatorTests.swift */,
 				B10000000000000000000025 /* CursorUnreadSessionTests.swift */,
@@ -272,6 +278,7 @@
 			files = (
 				A10000000000000000000001 /* App.swift in Sources */,
 				A10000000000000000000002 /* Domain.swift in Sources */,
+				A10000000000000000000027 /* CompatibilityHealth.swift in Sources */,
 				A10000000000000000000003 /* AccessibilityClient.swift in Sources */,
 				A10000000000000000000004 /* SystemAccessibilityClient.swift in Sources */,
 				A10000000000000000000023 /* TargetDispatcher.swift in Sources */,
@@ -296,6 +303,7 @@
 				A10000000000000000000013 /* ProfileSwitchCoordinatorTests.swift in Sources */,
 				A10000000000000000000025 /* TargetDispatcherTests.swift in Sources */,
 				A10000000000000000000026 /* ChatGPTSurfaceTests.swift in Sources */,
+				A10000000000000000000028 /* CompatibilityHealthTests.swift in Sources */,
 				A10000000000000000000018 /* ClaudeCodeSwitchCoordinatorTests.swift in Sources */,
 				A10000000000000000000020 /* CursorSwitchCoordinatorTests.swift in Sources */,
 				A10000000000000000000022 /* CursorUnreadSessionTests.swift in Sources */,
