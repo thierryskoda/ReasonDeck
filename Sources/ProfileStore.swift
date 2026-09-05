@@ -171,7 +171,7 @@ final class ProfileStore {
         switch target {
         case .antigravity:
             antigravity = enabled
-                ? AntigravitySelection(model: .gemini31Pro, effort: .medium)
+                ? AntigravitySelection(model: .gemini31Pro, effort: .low)
                 : nil
         case .chatGPT:
             chatGPT = enabled
@@ -439,7 +439,7 @@ final class ProfileStore {
                 chatGPT: ChatGPTSelection(model: .luna56, effort: .high),
                 claudeCode: ClaudeCodeSelection(model: .sonnet5, effort: .medium),
                 cursor: CursorSelection(model: .composer25Fast, effort: .high),
-                antigravity: AntigravitySelection(model: .gemini37Flash, effort: .high)
+                antigravity: AntigravitySelection(model: .gemini37Flash, effort: .medium)
             ),
             ShortcutEntry(
                 shortcut: KeyboardShortcut(
@@ -450,7 +450,7 @@ final class ProfileStore {
                 chatGPT: ChatGPTSelection(model: .sol56, effort: .high),
                 claudeCode: ClaudeCodeSelection(model: .sonnet5, effort: .high),
                 cursor: CursorSelection(model: .gpt56Sol, effort: .high),
-                antigravity: AntigravitySelection(model: .gemini31Pro, effort: .high)
+                antigravity: AntigravitySelection(model: .claudeOpus46, effort: .thinking)
             )
         ])
     }

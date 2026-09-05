@@ -31,7 +31,7 @@ Follow Apple's current notarization authentication guidance when creating that K
 
 1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Config/Build.xcconfig`.
 2. Move the completed entries in `CHANGELOG.md` from **Unreleased** to the exact version and release date.
-3. Confirm README requirements, tested ChatGPT version, install steps, and known limitations. Do not add Claude Code or Cursor to a release claim until each adapter has its own signed live reliability matrix.
+3. Confirm README requirements, exact tested versions for every claimed adapter, install steps, and known limitations. Do not add an adapter version to a release claim until it has its own signed live reliability evidence.
 4. Commit the version preparation. Do not create or move a public tag yet.
 
 Versions use `MAJOR.MINOR.PATCH`. During major version zero, every release note must describe compatibility honestly instead of implying a stable API contract.

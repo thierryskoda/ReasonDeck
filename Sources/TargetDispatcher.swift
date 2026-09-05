@@ -92,7 +92,7 @@ actor TargetDispatcher {
         case .cursor:
             .cursor(CursorSelection(model: .automatic, effort: .medium))
         case .antigravity:
-            .antigravity(AntigravitySelection(model: .gemini31Pro, effort: .medium))
+            .antigravity(AntigravitySelection(model: .gemini31Pro, effort: .low))
         }
     }
 }

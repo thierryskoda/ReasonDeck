@@ -278,6 +278,7 @@ struct CursorSelection: Codable, Hashable, Sendable, Identifiable {
 
 
 enum AntigravityModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
+    case gemini38Flash = "Gemini 3.8 Flash"
     case gemini37Flash = "Gemini 3.7 Flash"
     case gemini36Flash = "Gemini 3.6 Flash"
     case gemini35Flash = "Gemini 3.5 Flash"
@@ -292,6 +293,7 @@ enum AntigravityModel: String, CaseIterable, Codable, Hashable, Sendable, Identi
 enum AntigravityEffort: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
     case high = "High"
     case medium = "Medium"
+    case low = "Low"
     case none = "None"
     case thinking = "(Thinking)"
     case mediumParen = "(Medium)"
