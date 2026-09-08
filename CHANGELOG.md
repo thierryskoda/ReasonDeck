@@ -2,6 +2,16 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Changed
+
+- Open Settings whenever ReasonDeck is launched, including relaunching an already-running copy. Previously Settings opened only on the very first launch, which left no way back into the app when its menu bar icon was not reachable.
+
+### Fixed
+
+- Give users a route into Settings on displays where macOS pushes the menu bar icon into unusable space. On a notched Mac the usable icon strip is only the area right of the notch, and overflow items are parked off-strip with no system overflow list.
+
 ## 0.2.6 - 2026-09-05
 
 ### Added
