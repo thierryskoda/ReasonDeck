@@ -14,7 +14,7 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.2.6)
 
-Version 0.2.6 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity. It also includes Cursor's **Next finished session** shortcut and per-app compatibility health in Settings.
+Version 0.2.6 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity, plus per-app compatibility health in Settings.
 
 ### Install
 
@@ -84,7 +84,7 @@ Settings labels an exact version **Verified** only when that version has recorde
 
 ReasonDeck stores only shortcut, model, and reasoning preferences in macOS `UserDefaults`. Accessibility is used to find and verify the active app's controls; Input Monitoring is used for the shortcuts you configure.
 
-The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), [ADR-004](ADR-004-cursor-unread-navigation.md), and [ADR-005](ADR-005-antigravity-model-picker.md). Runtime compatibility status is documented in [ADR-006](ADR-006-runtime-compatibility-health.md).
+The switching design is documented in [ADR-001](ADR-001-accessibility-automation.md), [ADR-002](ADR-002-claude-code-desktop.md), [ADR-003](ADR-003-cursor-model-picker.md), and [ADR-005](ADR-005-antigravity-model-picker.md). Runtime compatibility status is documented in [ADR-006](ADR-006-runtime-compatibility-health.md).
 
 ## Troubleshooting
 

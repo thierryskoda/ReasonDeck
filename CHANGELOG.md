@@ -4,6 +4,10 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ## Unreleased
 
+### Removed
+
+- Remove Cursor's **Next finished session** shortcut, its Settings surface, Accessibility adapter, diagnostics, and configuration model. Existing version 2 settings are migrated once: the retired assignment is removed while unrelated model shortcuts are preserved.
+
 ### Changed
 
 - Open Settings whenever ReasonDeck is launched, including relaunching an already-running copy. Previously Settings opened only on the very first launch, which left no way back into the app when its menu bar icon was not reachable.

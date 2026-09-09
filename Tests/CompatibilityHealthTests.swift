@@ -118,9 +118,6 @@ private final class CompatibilityInventoryStub {
         .modelUnavailable,
         .effortUnavailable,
         .cursorMenuItemMissing,
-        .cursorUnreadNavigationUnavailable,
-        .cursorNoUnreadSessions,
-        .cursorUnreadStateNotObservable,
     ]
     for failure in contextual {
         #expect(!CompatibilityPolicy.isContractFailure(failure))

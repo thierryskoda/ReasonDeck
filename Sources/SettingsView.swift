@@ -8,7 +8,6 @@ struct SettingsView: View {
     let beginShortcutRecording: (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool
     let cancelShortcutRecording: () -> Void
     @State private var assignmentError: String?
-    @State private var selectedTab: ShortcutSettingsTab = .modelSwitching
     @State private var showsPermissionDetails = false
 
     var body: some View {
@@ -17,20 +16,7 @@ struct SettingsView: View {
             compatibilitySection
 
             if store.isValid {
-                Picker("Shortcut type", selection: $selectedTab) {
-                    ForEach(ShortcutSettingsTab.allCases) { tab in
-                        Text(tab.displayName).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-
-                switch selectedTab {
-                case .modelSwitching:
-                    modelShortcutLibrary
-                case .nextFinishedSession:
-                    finishedSessionLibrary
-                }
+                modelShortcutLibrary
             } else {
                 ContentUnavailableView {
                     Label("Shortcuts Need Reset", systemImage: "exclamationmark.triangle")
@@ -45,9 +31,6 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(minWidth: 620, idealWidth: 700, minHeight: 480, idealHeight: 620)
         .navigationTitle("Shortcuts")
-        .task(id: store.isValid) {
-            _ = store.ensureNavigationEntry()
-        }
         .alert("Shortcut Unavailable", isPresented: Binding(
             get: { assignmentError != nil },
             set: { if !$0 { assignmentError = nil } }
@@ -175,7 +158,7 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var modelShortcutLibrary: some View {
-        if store.modelEntries.isEmpty {
+        if store.entries.isEmpty {
             ContentUnavailableView {
                 Label("No Model Shortcuts", systemImage: "keyboard")
             } description: {
@@ -185,7 +168,7 @@ struct SettingsView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 240)
         } else {
-            ForEach(store.modelEntries) { entry in
+            ForEach(store.entries) { entry in
                 modelShortcutSection(entry)
             }
 
@@ -195,38 +178,6 @@ struct SettingsView: View {
                     Spacer()
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var finishedSessionLibrary: some View {
-        if let entry = store.navigationEntries.first {
-            Section {
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 12) {
-                        Label("Next finished session", systemImage: "checkmark.message")
-                            .font(.headline)
-
-                        Spacer(minLength: 12)
-
-                        shortcutRecorder(for: entry)
-                            .frame(width: 132)
-                    }
-
-                    Text("Open the next finished session waiting for a reply.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-
-                    if !RuntimeCapabilities.supportsCursorNavigation() {
-                        Label("Not available in this build", systemImage: "exclamationmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-        } else {
-            ProgressView()
-                .frame(maxWidth: .infinity, minHeight: 120)
         }
     }
 
@@ -535,20 +486,6 @@ struct SettingsView: View {
             get: { store.entry(id: id)?.antigravity?.effort ?? .low },
             set: { store.setAntigravityEffort($0, for: id) }
         )
-    }
-}
-
-private enum ShortcutSettingsTab: String, CaseIterable, Identifiable {
-    case modelSwitching
-    case nextFinishedSession
-
-    var id: Self { self }
-
-    var displayName: String {
-        switch self {
-        case .modelSwitching: "Model switching"
-        case .nextFinishedSession: "Next finished session"
-        }
     }
 }
 

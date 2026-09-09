@@ -142,25 +142,6 @@ import Testing
     }
 }
 
-@Test func configurationRejectsMultipleFinishedSessionActions() {
-    let first = ShortcutEntry(
-        shortcut: nil,
-        chatGPT: nil,
-        claudeCode: nil,
-        cursorNavigation: .nextUnreadSession
-    )
-    let second = ShortcutEntry(
-        shortcut: nil,
-        chatGPT: nil,
-        claudeCode: nil,
-        cursorNavigation: .nextUnreadSession
-    )
-
-    #expect(throws: ShortcutConfiguration.ValidationError.duplicateNavigationAction) {
-        try ShortcutConfiguration(entries: [first, second])
-    }
-}
-
 @Test func profileSelectionOwnsDisplayAndExactTitleMatching() {
     let selection = ChatGPTSelection(model: .mini54, effort: .extraHigh)
     #expect(selection.displayName == "5.4 Mini / Extra High")
@@ -193,44 +174,6 @@ import Testing
 
     #expect(entry.enabledTargets == [.chatGPT, .claudeCode, .cursor])
     #expect(RuntimeCapabilities.runnableTargets(for: entry) == [.chatGPT, .claudeCode, .cursor])
-}
-
-@Test func cursorModelAndFinishedNavigationAreBothRunnable() throws {
-    let shortcut = try KeyboardShortcut(keyCode: 18, keyLabel: "1", modifiers: [.command])
-    let modelEntry = ShortcutEntry(
-        shortcut: shortcut,
-        chatGPT: nil,
-        claudeCode: nil,
-        cursor: CursorSelection(model: .gpt56Sol, effort: .high)
-    )
-    let navigationEntry = ShortcutEntry(
-        shortcut: shortcut,
-        chatGPT: nil,
-        claudeCode: nil,
-        cursor: nil,
-        cursorNavigation: .nextUnreadSession
-    )
-
-    #expect(RuntimeCapabilities.runnableTargets(for: modelEntry) == [.cursor])
-    #expect(RuntimeCapabilities.runnableTargets(for: navigationEntry) == [.cursor])
-}
-
-@Test func persistedCursorModelAndNavigationConflictFailsClosed() throws {
-    let payload: [String: Any] = [
-        "entries": [[
-            "id": UUID().uuidString,
-            "shortcut": NSNull(),
-            "chatGPT": NSNull(),
-            "claudeCode": NSNull(),
-            "cursor": ["model": "Grok 4.5", "effort": "High"],
-            "cursorNavigation": "nextUnreadSession"
-        ]]
-    ]
-    let data = try JSONSerialization.data(withJSONObject: payload)
-
-    #expect(throws: ShortcutConfiguration.ValidationError.conflictingCursorActions) {
-        _ = try JSONDecoder().decode(ShortcutConfiguration.self, from: data)
-    }
 }
 
 @Test func operationStatesRemainDistinctAndHumanReadable() {

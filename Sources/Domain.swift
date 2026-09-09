@@ -63,20 +63,12 @@ enum ApplicationTarget: String, CaseIterable, Codable, Hashable, Sendable, Ident
 /// target is gated, but gated targets cannot be exposed through shortcuts or menu actions.
 enum RuntimeCapabilities {
     static let releaseReadyModelTargets: Set<ApplicationTarget> = [.chatGPT, .claudeCode, .cursor, .antigravity]
-    static let cursorNavigationReleaseReady = true
 
     static func supports(_ target: ApplicationTarget) -> Bool {
         releaseReadyModelTargets.contains(target)
     }
 
-    static func supportsCursorNavigation() -> Bool {
-        cursorNavigationReleaseReady
-    }
-
     static func supports(_ entry: ShortcutEntry, target: ApplicationTarget) -> Bool {
-        if target == .cursor, entry.navigation(for: .cursor) != nil {
-            return supportsCursorNavigation()
-        }
         return entry.selection(for: target) != nil && supports(target)
     }
 
@@ -343,7 +335,6 @@ struct ShortcutEntry: Codable, Hashable, Sendable, Identifiable {
     let claudeCode: ClaudeCodeSelection?
     let cursor: CursorSelection?
     let antigravity: AntigravitySelection?
-    let cursorNavigation: CursorNavigationAction?
 
     init(
         id: UUID = UUID(),
@@ -351,8 +342,7 @@ struct ShortcutEntry: Codable, Hashable, Sendable, Identifiable {
         chatGPT: ChatGPTSelection?,
         claudeCode: ClaudeCodeSelection?,
         cursor: CursorSelection? = nil,
-        antigravity: AntigravitySelection? = nil,
-        cursorNavigation: CursorNavigationAction? = nil
+        antigravity: AntigravitySelection? = nil
     ) {
         self.id = id
         self.shortcut = shortcut
@@ -360,14 +350,13 @@ struct ShortcutEntry: Codable, Hashable, Sendable, Identifiable {
         self.claudeCode = claudeCode
         self.cursor = cursor
         self.antigravity = antigravity
-        self.cursorNavigation = cursorNavigation
     }
 
     var enabledTargets: Set<ApplicationTarget> {
         var targets = Set<ApplicationTarget>()
         if chatGPT != nil { targets.insert(.chatGPT) }
         if claudeCode != nil { targets.insert(.claudeCode) }
-        if cursor != nil || cursorNavigation != nil { targets.insert(.cursor) }
+        if cursor != nil { targets.insert(.cursor) }
         if antigravity != nil { targets.insert(.antigravity) }
         return targets
     }
@@ -381,10 +370,6 @@ struct ShortcutEntry: Codable, Hashable, Sendable, Identifiable {
         }
     }
 
-    func navigation(for target: ApplicationTarget) -> CursorNavigationAction? {
-        guard target == .cursor else { return nil }
-        return cursorNavigation
-    }
 }
 
 struct ShortcutConfiguration: Codable, Equatable, Sendable {
@@ -392,8 +377,6 @@ struct ShortcutConfiguration: Codable, Equatable, Sendable {
         case duplicateIdentifier
         case duplicateShortcut
         case missingAssignment
-        case conflictingCursorActions
-        case duplicateNavigationAction
     }
 
     let entries: [ShortcutEntry]
@@ -413,12 +396,6 @@ struct ShortcutConfiguration: Codable, Equatable, Sendable {
         guard entries.allSatisfy({ !$0.enabledTargets.isEmpty }) else {
             throw ValidationError.missingAssignment
         }
-        guard entries.allSatisfy({ $0.cursor == nil || $0.cursorNavigation == nil }) else {
-            throw ValidationError.conflictingCursorActions
-        }
-        guard entries.filter({ $0.cursorNavigation != nil }).count <= 1 else {
-            throw ValidationError.duplicateNavigationAction
-        }
         self.entries = entries
     }
 
@@ -432,22 +409,6 @@ struct ShortcutConfiguration: Codable, Equatable, Sendable {
         var id = UUID()
         while entry(id: id) != nil { id = UUID() }
         let entry = ShortcutEntry(id: id, shortcut: nil, chatGPT: chatGPT, claudeCode: nil, cursor: nil, antigravity: nil)
-        return (ShortcutConfiguration(validatedEntries: entries + [entry]), id)
-    }
-
-    func addingNavigationEntry(
-        action: CursorNavigationAction = .nextUnreadSession
-    ) -> (configuration: ShortcutConfiguration, id: UUID) {
-        var id = UUID()
-        while entry(id: id) != nil { id = UUID() }
-        let entry = ShortcutEntry(
-            id: id,
-            shortcut: nil,
-            chatGPT: nil,
-            claudeCode: nil,
-            cursor: nil,
-            cursorNavigation: action
-        )
         return (ShortcutConfiguration(validatedEntries: entries + [entry]), id)
     }
 
@@ -483,7 +444,6 @@ enum SwitchFailure: Error, Equatable, Sendable {
     case busy, capabilityGated, invalidConfiguration, permissionMissing, chatGPTNotFrontmost, targetChanged(String), noFocusedWindow
     case claudeCodeSurfaceNotFound, cursorModelControlUnavailable, cursorPickerDidNotOpen
     case cursorMenuItemMissing(String)
-    case cursorUnreadNavigationUnavailable, cursorNoUnreadSessions, cursorUnreadStateNotObservable
     case pickerNotFound, modelRowNotActionable, modelUnavailable(String)
     case effortRowNotActionable, effortUnavailable(String), deadlineExceeded(String)
     case verificationMismatch(expected: String, observed: String), accessibility(String)
@@ -501,9 +461,6 @@ enum SwitchFailure: Error, Equatable, Sendable {
         case .cursorModelControlUnavailable: "Cursor model chip isn’t visible. Click the model name, then retry."
         case .cursorPickerDidNotOpen: "Cursor’s model menu didn’t open. Click the model chip, then retry."
         case .cursorMenuItemMissing(let value): "‘\(value)’ isn’t in Cursor’s open model menu."
-        case .cursorUnreadNavigationUnavailable: "Cursor’s agent session list isn’t visible in the Agents window."
-        case .cursorNoUnreadSessions: "No finished agent sessions waiting for a reply were found."
-        case .cursorUnreadStateNotObservable: "Cursor did not expose finished-session markers for agent chats."
         case .pickerNotFound: "The composer model picker was not found."
         case .modelRowNotActionable: "The Model row is not actionable."
         case .modelUnavailable(let value): "Model ‘\(value)’ is unavailable."
@@ -529,9 +486,6 @@ enum SwitchFailure: Error, Equatable, Sendable {
         case .cursorModelControlUnavailable: .cursorModelControlUnavailable
         case .cursorPickerDidNotOpen: .cursorPickerDidNotOpen
         case .cursorMenuItemMissing: .cursorMenuItemMissing
-        case .cursorUnreadNavigationUnavailable: .cursorUnreadNavigationUnavailable
-        case .cursorNoUnreadSessions: .cursorNoUnreadSessions
-        case .cursorUnreadStateNotObservable: .cursorUnreadStateNotObservable
         case .pickerNotFound: .pickerNotFound
         case .modelRowNotActionable: .modelRowNotActionable
         case .modelUnavailable: .modelUnavailable
@@ -558,9 +512,6 @@ enum AttemptFailureCode: String, Equatable, Sendable {
     case cursorModelControlUnavailable = "cursor_model_control_unavailable"
     case cursorPickerDidNotOpen = "cursor_picker_did_not_open"
     case cursorMenuItemMissing = "cursor_menu_item_missing"
-    case cursorUnreadNavigationUnavailable = "cursor_unread_navigation_unavailable"
-    case cursorNoUnreadSessions = "cursor_no_unread_sessions"
-    case cursorUnreadStateNotObservable = "cursor_unread_state_not_observable"
     case pickerNotFound = "picker_not_found"
     case modelRowNotActionable = "model_row_not_actionable"
     case modelUnavailable = "model_unavailable"
@@ -583,12 +534,10 @@ enum AttemptOutcome: String, Equatable, Sendable {
 /// labels obtained from an Accessibility tree.
 enum AttemptRequest: Equatable, Sendable {
     case profile(TargetSelection)
-    case cursorNavigation(CursorNavigationAction)
 
     var diagnosticValue: String {
         switch self {
         case .profile(let selection): selection.id
-        case .cursorNavigation(let action): "cursor-navigation|\(action.rawValue)"
         }
     }
 }

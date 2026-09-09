@@ -26,8 +26,6 @@
 		A10000000000000000000018 /* ClaudeCodeSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* ClaudeCodeSwitchCoordinatorTests.swift */; };
 		A10000000000000000000019 /* CursorAccessibilityClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000022 /* CursorAccessibilityClient.swift */; };
 		A10000000000000000000020 /* CursorSwitchCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000023 /* CursorSwitchCoordinatorTests.swift */; };
-		A10000000000000000000021 /* CursorUnreadSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000024 /* CursorUnreadSession.swift */; };
-		A10000000000000000000022 /* CursorUnreadSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000025 /* CursorUnreadSessionTests.swift */; };
 		A10000000000000000000023 /* TargetDispatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000026 /* TargetDispatcher.swift */; };
 		A10000000000000000000024 /* ChatGPTSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000027 /* ChatGPTSurface.swift */; };
 		A10000000000000000000025 /* TargetDispatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000028 /* TargetDispatcherTests.swift */; };
@@ -70,8 +68,6 @@
 		B10000000000000000000021 /* ClaudeCodeSwitchCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCodeSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000022 /* CursorAccessibilityClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorAccessibilityClient.swift; sourceTree = "<group>"; };
 		B10000000000000000000023 /* CursorSwitchCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorSwitchCoordinatorTests.swift; sourceTree = "<group>"; };
-		B10000000000000000000024 /* CursorUnreadSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorUnreadSession.swift; sourceTree = "<group>"; };
-		B10000000000000000000025 /* CursorUnreadSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorUnreadSessionTests.swift; sourceTree = "<group>"; };
 		B10000000000000000000026 /* TargetDispatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetDispatcher.swift; sourceTree = "<group>"; };
 		B10000000000000000000027 /* ChatGPTSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTSurface.swift; sourceTree = "<group>"; };
 		B10000000000000000000028 /* TargetDispatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetDispatcherTests.swift; sourceTree = "<group>"; };
@@ -123,7 +119,6 @@
 				B10000000000000000000027 /* ChatGPTSurface.swift */,
 				B10000000000000000000020 /* ClaudeCodeAccessibilityClient.swift */,
 				B10000000000000000000022 /* CursorAccessibilityClient.swift */,
-				B10000000000000000000024 /* CursorUnreadSession.swift */,
 				B10000000000000000000005 /* Hotkeys.swift */,
 				B10000000000000000000006 /* Permissions.swift */,
 				B10000000000000000000009 /* ProfileStore.swift */,
@@ -153,7 +148,6 @@
 				B10000000000000000000031 /* CompatibilityHealthTests.swift */,
 				B10000000000000000000021 /* ClaudeCodeSwitchCoordinatorTests.swift */,
 				B10000000000000000000023 /* CursorSwitchCoordinatorTests.swift */,
-				B10000000000000000000025 /* CursorUnreadSessionTests.swift */,
 				B10000000000000000000015 /* ProfileStoreTests.swift */,
 				B10000000000000000000019 /* PermissionTests.swift */,
 			);
@@ -285,7 +279,6 @@
 				A10000000000000000000024 /* ChatGPTSurface.swift in Sources */,
 				A10000000000000000000017 /* ClaudeCodeAccessibilityClient.swift in Sources */,
 				A10000000000000000000019 /* CursorAccessibilityClient.swift in Sources */,
-				A10000000000000000000021 /* CursorUnreadSession.swift in Sources */,
 				A10000000000000000000005 /* Hotkeys.swift in Sources */,
 				A10000000000000000000006 /* Permissions.swift in Sources */,
 				A10000000000000000000007 /* ProfileStore.swift in Sources */,
@@ -306,7 +299,6 @@
 				A10000000000000000000028 /* CompatibilityHealthTests.swift in Sources */,
 				A10000000000000000000018 /* ClaudeCodeSwitchCoordinatorTests.swift in Sources */,
 				A10000000000000000000020 /* CursorSwitchCoordinatorTests.swift in Sources */,
-				A10000000000000000000022 /* CursorUnreadSessionTests.swift in Sources */,
 				A10000000000000000000014 /* ProfileStoreTests.swift in Sources */,
 				A10000000000000000000016 /* PermissionTests.swift in Sources */,
 			);

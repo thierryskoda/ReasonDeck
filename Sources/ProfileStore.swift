@@ -2,7 +2,7 @@ import Foundation
 import Observation
 
 private struct StoredShortcutConfiguration: Codable {
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     let version: Int
     let configuration: ShortcutConfiguration
@@ -23,6 +23,79 @@ private struct StoredShortcutConfiguration: Codable {
             )
         }
         configuration = try container.decode(ShortcutConfiguration.self, forKey: .configuration)
+    }
+}
+
+/// Version 2 included the retired Cursor session-navigation assignment. Decode it
+/// only at this migration boundary so upgrades preserve unrelated model shortcuts.
+private struct Version2StoredShortcutConfiguration: Decodable {
+    let configuration: Version2ShortcutConfiguration
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try container.decode(Int.self, forKey: .version)
+        guard version == 2 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .version,
+                in: container,
+                debugDescription: "Unsupported shortcut configuration version."
+            )
+        }
+        configuration = try container.decode(Version2ShortcutConfiguration.self, forKey: .configuration)
+    }
+
+    private enum CodingKeys: String, CodingKey { case version, configuration }
+}
+
+private struct Version2ShortcutConfiguration: Decodable {
+    let entries: [Version2ShortcutEntry]
+
+    func migrated() throws -> ShortcutConfiguration {
+        guard Set(entries.map(\.id)).count == entries.count else {
+            throw ShortcutConfiguration.ValidationError.duplicateIdentifier
+        }
+        let shortcuts = entries.compactMap(\.shortcut).map(\.identity)
+        guard Set(shortcuts).count == shortcuts.count else {
+            throw ShortcutConfiguration.ValidationError.duplicateShortcut
+        }
+        guard entries.allSatisfy(\.hasAssignment),
+              entries.allSatisfy({ $0.cursor == nil || $0.cursorNavigation == nil }),
+              entries.filter({ $0.cursorNavigation != nil }).count <= 1
+        else {
+            throw ShortcutConfiguration.ValidationError.missingAssignment
+        }
+
+        return try ShortcutConfiguration(entries: entries.compactMap(\.migrated))
+    }
+}
+
+private struct Version2ShortcutEntry: Decodable {
+    enum CursorNavigation: String, Decodable { case nextUnreadSession }
+
+    let id: UUID
+    let shortcut: KeyboardShortcut?
+    let chatGPT: ChatGPTSelection?
+    let claudeCode: ClaudeCodeSelection?
+    let cursor: CursorSelection?
+    let antigravity: AntigravitySelection?
+    let cursorNavigation: CursorNavigation?
+
+    var hasAssignment: Bool {
+        chatGPT != nil || claudeCode != nil || cursor != nil || antigravity != nil || cursorNavigation != nil
+    }
+
+    var migrated: ShortcutEntry? {
+        guard chatGPT != nil || claudeCode != nil || cursor != nil || antigravity != nil else {
+            return nil
+        }
+        return ShortcutEntry(
+            id: id,
+            shortcut: shortcut,
+            chatGPT: chatGPT,
+            claudeCode: claudeCode,
+            cursor: cursor,
+            antigravity: antigravity
+        )
     }
 }
 
@@ -59,7 +132,8 @@ struct LegacyShortcutConfiguration: Codable, Sendable {
 @MainActor
 @Observable
 final class ProfileStore {
-    static let storageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
+    static let storageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v3"
+    static let version2StorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
     static let legacyStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v1"
     static let didOpenInitialSettingsKey = "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
 
@@ -76,6 +150,11 @@ final class ProfileStore {
 
         if defaults.object(forKey: Self.storageKey) != nil {
             loadCurrentConfiguration()
+            return
+        }
+
+        if defaults.object(forKey: Self.version2StorageKey) != nil {
+            migrateVersion2Configuration()
             return
         }
 
@@ -117,26 +196,6 @@ final class ProfileStore {
         return addition.id
     }
 
-    @discardableResult
-    func ensureNavigationEntry() -> UUID? {
-        guard let configuration else { return nil }
-        if let entry = navigationEntries.first {
-            return entry.id
-        }
-
-        let addition = configuration.addingNavigationEntry()
-        save(addition.configuration)
-        return addition.id
-    }
-
-    var modelEntries: [ShortcutEntry] {
-        entries.filter { $0.cursorNavigation == nil }
-    }
-
-    var navigationEntries: [ShortcutEntry] {
-        entries.filter { $0.cursorNavigation != nil }
-    }
-
     func deleteEntry(_ id: UUID) {
         guard let configuration else { return }
         save(configuration.deleting(id))
@@ -150,8 +209,7 @@ final class ProfileStore {
             chatGPT: current.chatGPT,
             claudeCode: current.claudeCode,
             cursor: current.cursor,
-            antigravity: current.antigravity,
-            cursorNavigation: current.cursorNavigation
+            antigravity: current.antigravity
         )
         do {
             save(try configuration.replacing(updated))
@@ -165,7 +223,6 @@ final class ProfileStore {
         var chatGPT = current.chatGPT
         var claudeCode = current.claudeCode
         var cursor = current.cursor
-        var cursorNavigation = current.cursorNavigation
         var antigravity = current.antigravity
 
         switch target {
@@ -182,14 +239,9 @@ final class ProfileStore {
                 ? current.claudeCode ?? ClaudeCodeSelection(model: .sonnet5, effort: .medium)
                 : nil
         case .cursor:
-            if enabled {
-                if cursor == nil && cursorNavigation == nil {
-                    cursor = CursorSelection(model: .grok45, effort: .high)
-                }
-            } else {
-                cursor = nil
-                cursorNavigation = nil
-            }
+            cursor = enabled
+                ? current.cursor ?? CursorSelection(model: .grok45, effort: .high)
+                : nil
         }
 
         do {
@@ -199,8 +251,7 @@ final class ProfileStore {
                 chatGPT: chatGPT,
                 claudeCode: claudeCode,
                 cursor: cursor,
-                antigravity: antigravity,
-                cursorNavigation: cursorNavigation
+                antigravity: antigravity
             )))
         } catch ShortcutConfiguration.ValidationError.missingAssignment {
             throw ShortcutAssignmentError.lastAssignment
@@ -216,7 +267,7 @@ final class ProfileStore {
                 chatGPT: ChatGPTSelection(model: model, effort: selection.effort),
                 claudeCode: entry.claudeCode,
                 cursor: entry.cursor,
-                cursorNavigation: entry.cursorNavigation
+                antigravity: entry.antigravity
             )
         }
     }
@@ -230,7 +281,7 @@ final class ProfileStore {
                 chatGPT: ChatGPTSelection(model: selection.model, effort: effort),
                 claudeCode: entry.claudeCode,
                 cursor: entry.cursor,
-                cursorNavigation: entry.cursorNavigation
+                antigravity: entry.antigravity
             )
         }
     }
@@ -244,7 +295,7 @@ final class ProfileStore {
                 chatGPT: entry.chatGPT,
                 claudeCode: ClaudeCodeSelection(model: model, effort: selection.effort),
                 cursor: entry.cursor,
-                cursorNavigation: entry.cursorNavigation
+                antigravity: entry.antigravity
             )
         }
     }
@@ -258,7 +309,7 @@ final class ProfileStore {
                 chatGPT: entry.chatGPT,
                 claudeCode: ClaudeCodeSelection(model: selection.model, effort: effort),
                 cursor: entry.cursor,
-                cursorNavigation: entry.cursorNavigation
+                antigravity: entry.antigravity
             )
         }
     }
@@ -272,7 +323,7 @@ final class ProfileStore {
                 chatGPT: entry.chatGPT,
                 claudeCode: entry.claudeCode,
                 cursor: CursorSelection(model: model, effort: selection.effort),
-                cursorNavigation: nil
+                antigravity: entry.antigravity
             )
         }
     }
@@ -286,8 +337,7 @@ final class ProfileStore {
                 chatGPT: entry.chatGPT,
                 claudeCode: entry.claudeCode,
                 cursor: CursorSelection(model: selection.model, effort: effort),
-                antigravity: entry.antigravity,
-                cursorNavigation: entry.cursorNavigation
+                antigravity: entry.antigravity
             )
         }
     }
@@ -301,8 +351,7 @@ final class ProfileStore {
                 chatGPT: entry.chatGPT,
                 claudeCode: entry.claudeCode,
                 cursor: entry.cursor,
-                antigravity: AntigravitySelection(model: model, effort: selection.effort),
-                cursorNavigation: entry.cursorNavigation
+                antigravity: AntigravitySelection(model: model, effort: selection.effort)
             )
         }
     }
@@ -316,46 +365,9 @@ final class ProfileStore {
                 chatGPT: entry.chatGPT,
                 claudeCode: entry.claudeCode,
                 cursor: entry.cursor,
-                antigravity: AntigravitySelection(model: selection.model, effort: effort),
-                cursorNavigation: entry.cursorNavigation
+                antigravity: AntigravitySelection(model: selection.model, effort: effort)
             )
         }
-    }
-
-
-    func setCursorAction(_ action: CursorShortcutAction, for id: UUID) {
-        update(id) { entry in
-            switch action {
-            case .switchModel(let selection):
-                return ShortcutEntry(
-                    id: entry.id,
-                    shortcut: entry.shortcut,
-                    chatGPT: entry.chatGPT,
-                    claudeCode: entry.claudeCode,
-                    cursor: selection,
-                    cursorNavigation: nil
-                )
-            case .nextUnreadSession:
-                return ShortcutEntry(
-                    id: entry.id,
-                    shortcut: entry.shortcut,
-                    chatGPT: entry.chatGPT,
-                    claudeCode: entry.claudeCode,
-                    cursor: nil,
-                    cursorNavigation: .nextUnreadSession
-                )
-            }
-        }
-    }
-
-    func cursorAction(for id: UUID) -> CursorShortcutAction {
-        guard let entry = entry(id: id) else { return .switchModel(CursorSelection(model: .grok45, effort: .high)) }
-        if let navigation = entry.cursorNavigation {
-            switch navigation {
-            case .nextUnreadSession: return .nextUnreadSession
-            }
-        }
-        return .switchModel(entry.cursor ?? CursorSelection(model: .grok45, effort: .high))
     }
 
     func reset() {
@@ -386,6 +398,19 @@ final class ProfileStore {
         }
     }
 
+    private func migrateVersion2Configuration() {
+        guard let data = defaults.data(forKey: Self.version2StorageKey) else {
+            invalidateSavedConfiguration()
+            return
+        }
+        do {
+            let stored = try JSONDecoder().decode(Version2StoredShortcutConfiguration.self, from: data)
+            save(try stored.configuration.migrated())
+        } catch {
+            invalidateSavedConfiguration()
+        }
+    }
+
     private func migrateLegacyConfiguration() {
         guard let data = defaults.data(forKey: Self.legacyStorageKey) else {
             invalidateSavedConfiguration()
@@ -396,6 +421,7 @@ final class ProfileStore {
             let migrated = try legacy.migrated()
             let encoded = try JSONEncoder().encode(StoredShortcutConfiguration(configuration: migrated))
             defaults.set(encoded, forKey: Self.storageKey)
+            defaults.removeObject(forKey: Self.version2StorageKey)
             defaults.removeObject(forKey: Self.legacyStorageKey)
             configuration = migrated
         } catch {
@@ -409,6 +435,7 @@ final class ProfileStore {
                 try JSONEncoder().encode(StoredShortcutConfiguration(configuration: configuration)),
                 forKey: Self.storageKey
             )
+            defaults.removeObject(forKey: Self.version2StorageKey)
             defaults.removeObject(forKey: Self.legacyStorageKey)
             self.configuration = configuration
             invalidReason = nil

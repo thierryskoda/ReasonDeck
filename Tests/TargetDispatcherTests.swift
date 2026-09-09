@@ -26,73 +26,60 @@ private actor ClaudeSpy: ClaudeCodeApplying {
     }
 }
 
-private actor NavigationSpy: CursorNavigating {
-    private(set) var calls = 0
-    func apply(_ action: CursorNavigationAction, invocation: HotkeyInvocation) async -> NavigationSwitchResult {
-        calls += 1
-        return .failure(.cursorUnreadNavigationUnavailable)
-    }
-}
-
 @Test func dispatcherCallsOnlyTheCapturedTargetsAdapter() async {
     let chatGPT = ChatGPTSpy()
     let cursor = CursorSpy()
     let claude = ClaudeSpy()
-    let navigation = NavigationSpy()
     let entry = ShortcutEntry(
         shortcut: nil,
         chatGPT: ChatGPTSelection(model: .sol56, effort: .extraHigh),
         claudeCode: ClaudeCodeSelection(model: .opus5, effort: .high),
         cursor: CursorSelection(model: .grok45, effort: .high)
     )
-    let dispatcher = TargetDispatcher(chatGPT: chatGPT, claudeCode: claude, cursor: cursor, cursorNavigation: navigation)
+    let dispatcher = TargetDispatcher(chatGPT: chatGPT, claudeCode: claude, cursor: cursor)
     let invocation = HotkeyInvocation(entryID: entry.id, target: .chatGPT, pid: 42, focusedWindowID: 9)
 
     let result = await dispatcher.apply(entry: entry, invocation: invocation)
-    if case .profile(.alreadyApplied(.chatGPT, _)) = result {} else { Issue.record("Expected ChatGPT result") }
+    if case .alreadyApplied(.chatGPT, _) = result {} else { Issue.record("Expected ChatGPT result") }
     #expect(await chatGPT.calls == 1)
     #expect(await cursor.calls == 0)
     #expect(await claude.calls == 0)
-    #expect(await navigation.calls == 0)
 }
 
 @Test func claudeAdapterIsCalledByTheDispatcher() async {
     let chatGPT = ChatGPTSpy()
     let cursor = CursorSpy()
     let claude = ClaudeSpy()
-    let navigation = NavigationSpy()
     let entry = ShortcutEntry(
         shortcut: nil,
         chatGPT: nil,
         claudeCode: ClaudeCodeSelection(model: .opus5, effort: .high),
         cursor: nil
     )
-    let dispatcher = TargetDispatcher(chatGPT: chatGPT, claudeCode: claude, cursor: cursor, cursorNavigation: navigation)
+    let dispatcher = TargetDispatcher(chatGPT: chatGPT, claudeCode: claude, cursor: cursor)
     let invocation = HotkeyInvocation(entryID: entry.id, target: .claudeCode, pid: 42, focusedWindowID: 9)
 
     let result = await dispatcher.apply(entry: entry, invocation: invocation)
-    if case .profile(.failure(_, .claudeCodeSurfaceNotFound)) = result {} else { Issue.record("Expected Claude adapter result") }
+    if case .failure(_, .claudeCodeSurfaceNotFound) = result {} else { Issue.record("Expected Claude adapter result") }
     #expect(await claude.calls == 1)
     #expect(await chatGPT.calls == 0)
     #expect(await cursor.calls == 0)
-    #expect(await navigation.calls == 0)
 }
 
 @Test func dispatcherRejectsAnEntryDifferentFromTheCapturedInvocation() async {
     let chatGPT = ChatGPTSpy()
     let cursor = CursorSpy()
     let claude = ClaudeSpy()
-    let navigation = NavigationSpy()
     let entry = ShortcutEntry(
         shortcut: nil,
         chatGPT: ChatGPTSelection(model: .sol56, effort: .extraHigh),
         claudeCode: nil,
         cursor: nil
     )
-    let dispatcher = TargetDispatcher(chatGPT: chatGPT, claudeCode: claude, cursor: cursor, cursorNavigation: navigation)
+    let dispatcher = TargetDispatcher(chatGPT: chatGPT, claudeCode: claude, cursor: cursor)
     let invocation = HotkeyInvocation(entryID: UUID(), target: .chatGPT, pid: 42, focusedWindowID: 9)
 
     let result = await dispatcher.apply(entry: entry, invocation: invocation)
-    if case .profile(.failure(_, .invalidConfiguration)) = result {} else { Issue.record("Expected entry identity failure") }
+    if case .failure(_, .invalidConfiguration) = result {} else { Issue.record("Expected entry identity failure") }
     #expect(await chatGPT.calls == 0)
 }

@@ -218,25 +218,6 @@ private func isolatedDefaults() -> UserDefaults {
 }
 
 @MainActor
-@Test func finishedSessionShortcutIsCreatedOnceAndPersists() throws {
-    let defaults = isolatedDefaults()
-    let store = ProfileStore(defaults: defaults)
-    let id = try #require(store.ensureNavigationEntry())
-    #expect(store.ensureNavigationEntry() == id)
-    let shortcut = try KeyboardShortcut(keyCode: 0, keyLabel: "A", modifiers: [.command, .shift])
-
-    try store.setShortcut(shortcut, for: id)
-
-    let relaunched = ProfileStore(defaults: defaults)
-    #expect(relaunched.ensureNavigationEntry() == id)
-    #expect(relaunched.navigationEntries.count == 1)
-    let entry = try #require(relaunched.entry(id: id))
-    #expect(entry.shortcut == shortcut)
-    #expect(entry.cursorNavigation == .nextUnreadSession)
-    #expect(entry.cursor == nil)
-}
-
-@MainActor
 @Test func deletingAnEntryPersists() throws {
     let defaults = isolatedDefaults()
     let store = ProfileStore(defaults: defaults)
@@ -262,8 +243,35 @@ private func isolatedDefaults() -> UserDefaults {
 }
 
 @MainActor
-@Test func persistedCursorModelAndNavigationConflictDisablesTheStore() throws {
-    let defaults = isolatedDefaults()
+@Test func version2MigrationRemovesNavigationAndPreservesOtherAssignments() throws {
+    let defaults = unconfiguredDefaults()
+    let id = UUID()
+    let payload: [String: Any] = [
+        "version": 2,
+        "configuration": ["entries": [[
+            "id": id.uuidString,
+            "shortcut": NSNull(),
+            "chatGPT": ["model": "5.6 Sol", "effort": "High"],
+            "claudeCode": NSNull(),
+            "cursor": NSNull(),
+            "antigravity": NSNull(),
+            "cursorNavigation": "nextUnreadSession"
+        ]]]
+    ]
+    defaults.set(try JSONSerialization.data(withJSONObject: payload), forKey: ProfileStore.version2StorageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.isValid)
+    #expect(store.entries.count == 1)
+    #expect(store.entry(id: id)?.chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
+    #expect(defaults.object(forKey: ProfileStore.version2StorageKey) == nil)
+    #expect(defaults.object(forKey: ProfileStore.storageKey) != nil)
+}
+
+@MainActor
+@Test func version2MigrationDropsNavigationOnlyEntry() throws {
+    let defaults = unconfiguredDefaults()
     let payload: [String: Any] = [
         "version": 2,
         "configuration": ["entries": [[
@@ -271,14 +279,15 @@ private func isolatedDefaults() -> UserDefaults {
             "shortcut": NSNull(),
             "chatGPT": NSNull(),
             "claudeCode": NSNull(),
-            "cursor": ["model": "Grok 4.5", "effort": "High"],
+            "cursor": NSNull(),
+            "antigravity": NSNull(),
             "cursorNavigation": "nextUnreadSession"
         ]]]
     ]
-    defaults.set(try JSONSerialization.data(withJSONObject: payload), forKey: ProfileStore.storageKey)
+    defaults.set(try JSONSerialization.data(withJSONObject: payload), forKey: ProfileStore.version2StorageKey)
 
     let store = ProfileStore(defaults: defaults)
 
-    #expect(!store.isValid)
+    #expect(store.isValid)
     #expect(store.entries.isEmpty)
 }

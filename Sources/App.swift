@@ -198,31 +198,17 @@ final class MenuBarViewModel {
             failure: nil,
             elapsed: start.duration(to: clock.now)
         ))
-        let navigation = entry.navigation(for: invocation.target)
-        let selectedProfile = entry.selection(for: invocation.target)
-        guard navigation != nil || selectedProfile != nil else {
+        guard let selectedProfile = entry.selection(for: invocation.target) else {
             status = .invalidConfiguration(store.invalidReason ?? "Saved shortcuts are invalid.")
             log(AttemptEvent(attemptID: attemptID, target: invocation.target, phase: .completed, outcome: .failure, failure: .missingAssignment, elapsed: start.duration(to: clock.now)))
             NSSound.beep()
             isSwitching = false
             return
         }
-        status = .switching(navigation?.displayName ?? selectedProfile!.displayName)
+        status = .switching(selectedProfile.displayName)
         Task {
-            let request = navigation.map(AttemptRequest.cursorNavigation) ?? .profile(selectedProfile!)
-            let dispatched = await dispatcher.apply(entry: entry, invocation: invocation)
-            switch dispatched {
-            case .navigation(let navigation):
-                switch navigation {
-                case .success(let title, let elapsed):
-                    status = .success(title)
-                    log(AttemptEvent(attemptID: attemptID, target: .cursor, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: .success, failure: nil, elapsed: elapsed))
-                case .failure(let failure):
-                    status = failure == .busy ? .busy : .failure(failure.message)
-                    log(AttemptEvent(attemptID: attemptID, target: .cursor, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: failure == .busy ? .busy : .failure, failure: failure.diagnosticCode, elapsed: start.duration(to: clock.now)))
-                    NSSound.beep()
-                }
-            case .profile(let result):
+            let request = AttemptRequest.profile(selectedProfile)
+            let result = await dispatcher.apply(entry: entry, invocation: invocation)
             switch result {
             case .success(let applied, let title, let elapsed):
                 status = .success(title)
@@ -246,7 +232,6 @@ final class MenuBarViewModel {
                 compatibilityHealth.recordFailure(failure.diagnosticCode, for: applied.target)
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: failure == .busy ? .busy : .failure, failure: failure.diagnosticCode, elapsed: start.duration(to: clock.now)))
                 NSSound.beep()
-            }
             }
             isSwitching = false
         }
@@ -414,13 +399,8 @@ struct MenuBarContent: View {
         } else {
             ForEach(model.store.entries) { entry in
                 let shortcut = entry.shortcut?.displayName ?? "Set shortcut in Settings"
-                let label: String = {
-                    if let navigation = entry.cursorNavigation {
-                        return "\(navigation.displayName)    \(shortcut)"
-                    }
-                    let apps = entry.enabledTargets.map(\.displayName).sorted().joined(separator: " + ")
-                    return "\(apps)    \(shortcut)"
-                }()
+                let apps = entry.enabledTargets.map(\.displayName).sorted().joined(separator: " + ")
+                let label = "\(apps)    \(shortcut)"
                 Button(label) { model.applyFromMenu(entry.id) }
                     .disabled(
                         model.readiness.installLocation != .installed

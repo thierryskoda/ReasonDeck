@@ -123,9 +123,6 @@ enum CompatibilityPolicy {
              .claudeCodeSurfaceNotFound,
              .cursorModelControlUnavailable,
              .cursorMenuItemMissing,
-             .cursorUnreadNavigationUnavailable,
-             .cursorNoUnreadSessions,
-             .cursorUnreadStateNotObservable,
              .modelUnavailable,
              .effortUnavailable:
             false
