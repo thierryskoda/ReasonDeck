@@ -4,9 +4,62 @@ Audience: maintainers publishing a GitHub Release and updating the custom Homebr
 
 Owner: the repository maintainer.
 
-Lifecycle: update this procedure whenever `scripts/release.sh`, signing requirements, GitHub publication, or the Cask contract changes.
+Lifecycle: update this procedure whenever `scripts/release.sh`, `scripts/next-release.sh`, `.github/workflows/release.yml`, signing requirements, GitHub publication, or the Cask contract changes.
 
-The release command prepares and verifies artifacts. It never creates tags, pushes, uploads, or publishes.
+Releases are published automatically from `main`. `scripts/release.sh` itself only prepares and verifies artifacts; it never creates tags, pushes, uploads, or publishes. The sections after **Automated releases** describe the manual path, which is still required for live verification and for producing an artifact by hand.
+
+## Automated releases
+
+Pushing to `main` runs `.github/workflows/release.yml`. It publishes only when the pushed commits contain a releasable Conventional Commit subject:
+
+| Commit type | Effect |
+| --- | --- |
+| `feat` | Minor version, listed under **Added** |
+| `fix` | Patch version, listed under **Fixed** |
+| `perf` | Patch version, listed under **Changed** |
+| `refactor` | Listed under **Changed**, never releases on its own |
+| `!` or a `BREAKING CHANGE:` trailer | Minor version while the major is `0`, marked **Breaking** |
+| `docs`, `chore`, `ci`, `test`, `style`, `build` | No release |
+
+The workflow runs `swift test`, derives the version with `scripts/next-release.sh`, writes `MARKETING_VERSION`, `CURRENT_PROJECT_VERSION`, the `CHANGELOG.md` entry, and the README download links, commits and tags, then runs `scripts/release.sh` to produce the same signed, notarized, stapled DMG as the manual path. The commit and tag are pushed atomically only after that artifact verifies, so a failed build never leaves a public tag without a release. Its own release commit carries `[skip ci]` and cannot re-trigger the workflow.
+
+A hand-written `## Unreleased` section in `CHANGELOG.md` becomes the release notes verbatim and replaces the generated bullets. Use it whenever a change needs Safety reasoning or wording that a commit subject cannot carry.
+
+Preview what the next push would publish, changing nothing:
+
+```sh
+scripts/next-release.sh
+```
+
+Releases publish as prereleases. Set `PRERELEASE` to `"false"` in the workflow to change that.
+
+### What automation cannot do
+
+An automated release is signed, notarized, and unit-tested. It carries **no live Accessibility evidence**, and its notes say so explicitly. Section 4 remains mandatory, but now runs *after* publication instead of before it:
+
+1. Download the published DMG and run every section 4 check against that exact artifact.
+2. When the checks pass, edit the release notes to record the macOS version, target app versions, and architectures actually tested, then remove the unverified warning.
+3. When they fail, follow **Rollback**.
+
+Automation also never updates Homebrew, and never rewrites version claims in README prose. The live-certification sentences stay under human control so that no build can assert evidence it has not earned.
+
+### Required secrets
+
+The workflow fails closed when any of these repository secrets is missing, because an unsigned or un-notarized build would force users past Gatekeeper.
+
+| Secret | Value |
+| --- | --- |
+| `APPLE_DEVELOPER_ID_CERT_P12` | `base64 -i DeveloperID.p12` of the Developer ID Application certificate exported from Keychain Access with its private key |
+| `APPLE_DEVELOPER_ID_CERT_PASSWORD` | The password set during that `.p12` export |
+| `APPLE_DEVELOPER_TEAM_ID` | The 10-character Apple team identifier |
+| `APPLE_NOTARY_KEY_P8` | `base64 -i AuthKey_XXXXXXXXXX.p8` of an App Store Connect API key |
+| `APPLE_NOTARY_KEY_ID` | That key's ID |
+| `APPLE_NOTARY_ISSUER_ID` | The App Store Connect issuer UUID |
+| `APPLE_SIGNING_IDENTITY` | Optional. The full `Developer ID Application: Name (TEAMID)` string, needed only when more than one identity resolves |
+
+Create the notarization key in App Store Connect under Users and Access, Integrations, with Developer ID access. Apple allows a `.p8` to be downloaded once.
+
+Storing a Developer ID certificate as a repository secret lets anyone who can run a workflow in this repository sign code as this team. Restrict who can push and who can edit workflows, and revoke the certificate in the Apple Developer portal if either is ever in doubt.
 
 ## Prerequisites
 
@@ -28,6 +81,8 @@ xcrun notarytool store-credentials ReasonDeck
 Follow Apple's current notarization authentication guidance when creating that Keychain profile.
 
 ## 1. Prepare the version
+
+Automated releases perform steps 1 and 2 and publish in step 6. Follow this section by hand only when releasing without the workflow.
 
 1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `Config/Build.xcconfig`.
 2. Move the completed entries in `CHANGELOG.md` from **Unreleased** to the exact version and release date.
