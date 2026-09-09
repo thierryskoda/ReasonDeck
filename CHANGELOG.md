@@ -4,6 +4,11 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ## Unreleased
 
+### Added
+
+- Warn in Settings when the running build is ad-hoc signed or unsigned, because macOS then drops its Accessibility and Input Monitoring grants on every rebuild while System Settings still shows the toggle on.
+- Explain in Settings that Input Monitoring applies only to a fresh launch, with a **Quit & Reopen** action beside the Input Monitoring row while it is still required.
+
 ### Changed
 
 - Open Settings whenever ReasonDeck is launched, including relaunching an already-running copy. Previously Settings opened only on the very first launch, which left no way back into the app when its menu bar icon was not reachable.

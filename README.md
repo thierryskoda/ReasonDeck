@@ -90,6 +90,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 
 - **Permissions are required:** Use the matching **Allow** action in ReasonDeck Settings, enable the installed app in System Settings, then return to ReasonDeck.
 - **Hotkeys do not respond:** Confirm ReasonDeck appears and is enabled in **System Settings > Privacy & Security > Input Monitoring**. Use **Allow Input Monitoring…** in ReasonDeck if the list has no ReasonDeck entry, then choose **Quit & Reopen** when macOS asks.
+- **Permissions show Required although the System Settings toggle is on:** Input Monitoring applies only to a fresh launch, so use **Quit & Reopen** first. If it persists, the grant belongs to an earlier build: ad-hoc builds get a new privacy identity every rebuild. Remove ReasonDeck from the Accessibility and Input Monitoring lists and allow it again, or sign with a stable team so grants persist. Settings warns when the running build cannot keep its grants.
 - **Only the model changes:** The requested effort was unavailable or could not be verified. ReasonDeck reports a partial result instead of rolling the model back.
 - **Claude Desktop's controls cannot be found:** Select Chat or Cowork and leave its composer visible. For Code, leave the idle Prompt composer and its model/effort controls visible.
 - **A shortcut will not save:** Include Command, Option, or Control. Escape cancels recording, unmodified Delete clears it, and duplicate combinations are rejected.
@@ -121,7 +122,7 @@ xcodebuild \
 open build/Build/Products/Release/ReasonDeck.app
 ```
 
-Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity.
+Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity. Set `DEVELOPMENT_TEAM` in `Config/Local.xcconfig` so Xcode signs with an Apple Development certificate; an ad-hoc build (`CODE_SIGN_IDENTITY = -`) is identified only by its binary hash, so macOS drops its Accessibility and Input Monitoring grants on every rebuild.
 
 CI runs the tests and an unsigned universal Release build. It has no Apple credentials and cannot publish the app.
 
