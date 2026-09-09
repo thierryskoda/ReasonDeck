@@ -1,0 +1,242 @@
+name: Release
+
+# Publishes a signed, notarized release for every push to main that contains a
+# releasable Conventional Commit (feat, fix, perf, or a breaking change).
+# Pushes made only of docs, chore, ci, test, style, build, or refactor commits
+# derive no version and exit without releasing.
+#
+# Requires these repository secrets. They are checked only once a release is
+# actually due, so a push that releases nothing stays green without them. When
+# a release is due and any is missing the job fails closed, because an unsigned
+# or un-notarized build would force users past Gatekeeper:
+#   APPLE_DEVELOPER_ID_CERT_P12       base64 of the Developer ID Application .p12
+#   APPLE_DEVELOPER_ID_CERT_PASSWORD  password used when exporting that .p12
+#   APPLE_DEVELOPER_TEAM_ID           10-character Apple team identifier
+#   APPLE_NOTARY_KEY_P8               base64 of the App Store Connect AuthKey .p8
+#   APPLE_NOTARY_KEY_ID               that key's ID
+#   APPLE_NOTARY_ISSUER_ID            App Store Connect issuer UUID
+# Optional:
+#   APPLE_SIGNING_IDENTITY            full "Developer ID Application: Name (TEAMID)"
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Never cancel a release in flight: a half-finished run could leave a published
+# tag without its artifacts.
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    env:
+      # Keep releases on the Swift generation used for signed builds, matching
+      # ci.yml. Xcode 16.4's region-isolation checker rejects the Accessibility
+      # traversal closures.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      # Every published release so far has been a prerelease. Set to "false" to
+      # start publishing full releases.
+      PRERELEASE: "true"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history and tags: the version is derived from commits since the
+          # highest v* tag.
+          fetch-depth: 0
+
+      - name: Tool versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Test
+        run: swift test
+
+      - name: Derive next release
+        id: derive
+        run: |
+          set -euo pipefail
+          set +e
+          output="$(scripts/next-release.sh --notes-out "$RUNNER_TEMP/notes.md")"
+          status=$?
+          set -e
+
+          if [[ $status -eq 3 ]]; then
+            echo "No releasable commit since the last tag; nothing to publish."
+            echo "release=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [[ $status -eq 0 ]] || exit $status
+
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" >>"$GITHUB_OUTPUT"
+          echo "release=true" >>"$GITHUB_OUTPUT"
+
+      - name: Verify signing secrets are present
+        if: steps.derive.outputs.release == 'true'
+        env:
+          CERT_P12: ${{ secrets.APPLE_DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD }}
+          TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
+          NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          missing=""
+          for name in CERT_P12 CERT_PASSWORD TEAM_ID NOTARY_KEY_P8 NOTARY_KEY_ID NOTARY_ISSUER_ID; do
+            [[ -n "${!name}" ]] || missing="$missing $name"
+          done
+          if [[ -n "$missing" ]]; then
+            printf 'Missing required signing secrets:%s\n' "$missing" >&2
+            printf 'See docs/RELEASING.md for how to create each one.\n' >&2
+            exit 1
+          fi
+
+      - name: Configure signing
+        if: steps.derive.outputs.release == 'true'
+        env:
+          CERT_P12: ${{ secrets.APPLE_DEVELOPER_ID_CERT_P12 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASSWORD }}
+          TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
+          NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+        run: |
+          set -euo pipefail
+
+          # DEVELOPMENT_TEAM lives in the untracked Local.xcconfig that
+          # Build.xcconfig optionally includes, so writing it here does not
+          # dirty the tree that release.sh requires to be clean.
+          printf 'DEVELOPMENT_TEAM = %s\n' "$TEAM_ID" >Config/Local.xcconfig
+
+          key_path="$RUNNER_TEMP/notary-key.p8"
+          printf '%s' "$NOTARY_KEY_P8" | base64 --decode >"$key_path"
+          chmod 600 "$key_path"
+          echo "NOTARY_KEY_PATH=$key_path" >>"$GITHUB_ENV"
+
+          cert_path="$RUNNER_TEMP/certificate.p12"
+          printf '%s' "$CERT_P12" | base64 --decode >"$cert_path"
+
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(openssl rand -base64 24)"
+          echo "SIGNING_KEYCHAIN=$keychain" >>"$GITHUB_ENV"
+
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$cert_path" -k "$keychain" -P "$CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Without an explicit partition list, codesign blocks on a UI prompt
+          # that no runner can answer.
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          # release.sh resolves the identity through the keychain search list.
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$cert_path"
+
+          security find-identity -v -p codesigning "$keychain"
+
+      - name: Apply version and changelog
+        if: steps.derive.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.derive.outputs.version }}
+        run: |
+          set -euo pipefail
+          scripts/next-release.sh --apply
+          git --no-pager diff --stat
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Config/Build.xcconfig CHANGELOG.md README.md
+          # [skip ci] stops this release commit from re-triggering the workflow.
+          git commit -m "chore(release): v$VERSION [skip ci]"
+          git tag -a "v$VERSION" -m "ReasonDeck $VERSION"
+
+      - name: Build, sign, notarize
+        if: steps.derive.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.derive.outputs.version }}
+          NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          args=(
+            "$VERSION"
+            --notary-key "$NOTARY_KEY_PATH"
+            --notary-key-id "$NOTARY_KEY_ID"
+            --notary-issuer "$NOTARY_ISSUER_ID"
+          )
+          # release.sh auto-detects a lone Developer ID identity; pass it only
+          # when the repository pins one explicitly.
+          [[ -z "$SIGNING_IDENTITY" ]] || args+=(--identity "$SIGNING_IDENTITY")
+          scripts/release.sh "${args[@]}"
+
+      - name: Publish release
+        if: steps.derive.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.derive.outputs.version }}
+        run: |
+          set -euo pipefail
+          dist="dist/v$VERSION"
+          dmg="$dist/ReasonDeck-$VERSION.dmg"
+          [[ -f "$dmg" ]] || { echo "missing $dmg" >&2; exit 1; }
+          [[ -f "$dist/SHA256SUMS" ]] || { echo "missing $dist/SHA256SUMS" >&2; exit 1; }
+
+          # Push only after the artifact is verified, and atomically, so a
+          # failed build can never leave a public tag with no release behind it.
+          git push --atomic origin main "v$VERSION"
+
+          digest="$(awk '{ print $1; exit }' "$dist/SHA256SUMS")"
+          notes="$RUNNER_TEMP/release-notes.md"
+          cat "$RUNNER_TEMP/notes.md" >"$notes"
+          cat >>"$notes" <<NOTES
+
+          ## Install
+
+          Download \`ReasonDeck-$VERSION.dmg\`, open it, and drag ReasonDeck to Applications.
+          Grant Accessibility and Input Monitoring in System Settings on first launch.
+
+          Requires macOS 14 or later. Universal (Apple silicon and Intel).
+
+          Verify the download before opening it:
+
+          \`\`\`sh
+          shasum -a 256 ReasonDeck-$VERSION.dmg
+          \`\`\`
+
+          \`$digest\`
+
+          ## Verification status
+
+          This build is Developer ID signed, notarized by Apple, and stapled, and its
+          test suite passed. It has **not** passed the live Accessibility reliability
+          check described in \`docs/RELEASING.md\`, which needs real target apps and
+          granted permissions that CI cannot provide. Treat adapter behavior on this
+          build as unverified until that check runs on real hardware.
+          NOTES
+          prerelease_flag=""
+          [[ "$PRERELEASE" != "true" ]] || prerelease_flag="--prerelease"
+
+          gh release create "v$VERSION" \
+            "$dmg" \
+            "$dist/SHA256SUMS" \
+            --title "ReasonDeck $VERSION" \
+            --notes-file "$notes" \
+            ${prerelease_flag:+"$prerelease_flag"}
+
+      - name: Clean up signing material
+        if: always()
+        run: |
+          set -euo pipefail
+          [[ -z "${SIGNING_KEYCHAIN:-}" ]] || security delete-keychain "$SIGNING_KEYCHAIN" || true
+          [[ -z "${NOTARY_KEY_PATH:-}" ]] || rm -f "$NOTARY_KEY_PATH"
+          rm -f "$RUNNER_TEMP/certificate.p12" Config/Local.xcconfig

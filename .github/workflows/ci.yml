@@ -20,6 +20,24 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Tags are needed to preview what merging would release.
+          fetch-depth: 0
+
+      - name: Preview the release this change would produce
+        run: |
+          set -euo pipefail
+          set +e
+          output="$(scripts/next-release.sh)"
+          status=$?
+          set -e
+          case $status in
+            0) printf 'Merging would publish:\n%s\n' "$output" ;;
+            3) echo "No releasable commit; merging would publish nothing." ;;
+            # Any other status means the version, tag, and changelog disagree.
+            # Catch that here rather than when main tries to publish.
+            *) exit $status ;;
+          esac
 
       - name: Tool versions
         run: |

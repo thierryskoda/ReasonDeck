@@ -19,15 +19,22 @@ fail() {
 usage() {
     cat <<'USAGE'
 Usage:
-  scripts/release.sh <version> --notary-profile <keychain-profile>
+  scripts/release.sh <version>
+      (--notary-profile <keychain-profile>
+       | --notary-key <path> --notary-key-id <id> --notary-issuer <uuid>)
       [--identity "Developer ID Application: Name (TEAMID)"]
       [--preflight-only]
 
 Creates a Developer ID-signed, notarized, stapled universal DMG under
 dist/v<version>/. The command never creates tags, pushes, or publishes.
 
-Store notarization credentials before running:
+Store notarization credentials before running interactively:
   xcrun notarytool store-credentials <keychain-profile>
+
+Unattended runs use an App Store Connect API key instead of a Keychain
+profile, because no interactive Keychain is available:
+  --notary-key AuthKey_XXXXXXXXXX.p8 --notary-key-id XXXXXXXXXX \
+      --notary-issuer 00000000-0000-0000-0000-000000000000
 USAGE
 }
 
@@ -48,6 +55,9 @@ fi
 shift
 
 notary_profile=""
+notary_key=""
+notary_key_id=""
+notary_issuer=""
 requested_identity=""
 preflight_only=false
 
@@ -56,6 +66,21 @@ while [[ $# -gt 0 ]]; do
         --notary-profile)
             [[ $# -ge 2 ]] || fail "--notary-profile requires a value"
             notary_profile="$2"
+            shift 2
+            ;;
+        --notary-key)
+            [[ $# -ge 2 ]] || fail "--notary-key requires a value"
+            notary_key="$2"
+            shift 2
+            ;;
+        --notary-key-id)
+            [[ $# -ge 2 ]] || fail "--notary-key-id requires a value"
+            notary_key_id="$2"
+            shift 2
+            ;;
+        --notary-issuer)
+            [[ $# -ge 2 ]] || fail "--notary-issuer requires a value"
+            notary_issuer="$2"
             shift 2
             ;;
         --identity)
@@ -78,7 +103,21 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "version must use MAJOR.MINOR.PATCH"
-[[ -n "$notary_profile" ]] || fail "--notary-profile is required"
+
+# Exactly one notarization credential source. Accepting both would leave it
+# ambiguous which Apple identity actually signed off on the artifact.
+if [[ -n "$notary_profile" ]]; then
+    [[ -z "$notary_key$notary_key_id$notary_issuer" ]] \
+        || fail "--notary-profile cannot be combined with App Store Connect key options"
+    notary_auth=(--keychain-profile "$notary_profile")
+elif [[ -n "$notary_key" || -n "$notary_key_id" || -n "$notary_issuer" ]]; then
+    [[ -n "$notary_key" && -n "$notary_key_id" && -n "$notary_issuer" ]] \
+        || fail "--notary-key, --notary-key-id, and --notary-issuer must be given together"
+    [[ -f "$notary_key" ]] || fail "notarization key not found: $notary_key"
+    notary_auth=(--key "$notary_key" --key-id "$notary_key_id" --issuer "$notary_issuer")
+else
+    fail "--notary-profile or the --notary-key trio is required"
+fi
 
 for tool in awk basename cat codesign ditto git grep hdiutil lipo ln mkdir mktemp plutil rm security sed shasum spctl tail xcodebuild xcrun; do
     require_command "$tool"
@@ -255,7 +294,7 @@ submit_notarization() {
     local log_name="$3"
 
     if ! xcrun notarytool submit "$artifact" \
-        --keychain-profile "$notary_profile" \
+        "${notary_auth[@]}" \
         --wait \
         --output-format json >"$report"; then
         fail "notarization submission failed for $artifact"
@@ -269,7 +308,7 @@ submit_notarization() {
     if [[ "$status" != "Accepted" ]]; then
         if [[ -n "$submission_id" ]]; then
             xcrun notarytool log "$submission_id" \
-                --keychain-profile "$notary_profile" \
+                "${notary_auth[@]}" \
                 "$logs_dir/$log_name" >/dev/null 2>&1 || true
         fi
         fail "notarization was not accepted for $artifact (status: ${status:-unknown})"
