@@ -106,11 +106,9 @@ final class MenuBarViewModel {
             Task { @MainActor in self?.compatibilityHealth.refresh() }
         }
         prepareClaudeAccessibilityForRunningApp()
-        let firstRunKey = ProfileStore.didOpenInitialSettingsKey
-        if !UserDefaults.standard.bool(forKey: firstRunKey) {
-            UserDefaults.standard.set(true, forKey: firstRunKey)
-            DispatchQueue.main.async { [weak self] in self?.openSettings() }
-        }
+        UserDefaults.standard.set(true, forKey: ProfileStore.didOpenInitialSettingsKey)
+        AppDelegate.reopenHandler = { [weak self] in self?.openSettings() }
+        DispatchQueue.main.async { [weak self] in self?.openSettings() }
     }
 
     func apply(_ id: UUID) {
@@ -449,8 +447,22 @@ struct MenuBarContent: View {
     }
 }
 
+/// Reopens Settings when the user launches ReasonDeck again.
+///
+/// The menu bar icon can be pushed into unusable space on displays with a
+/// notch, so relaunching the app is the only reliable way back to Settings.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    @MainActor static var reopenHandler: (() -> Void)?
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        MainActor.assumeIsolated { AppDelegate.reopenHandler?() }
+        return true
+    }
+}
+
 @main
 struct ReasonDeckApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = MenuBarViewModel(store: ProfileStore())
 
     var body: some Scene {
