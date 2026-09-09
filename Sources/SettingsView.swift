@@ -53,6 +53,10 @@ struct SettingsView: View {
     private var readinessSection: some View {
         if readiness.installLocation == .installed {
             Section {
+                if let advisory = readiness.signingIdentity.advisory {
+                    signingAdvisory(advisory)
+                }
+
                 if permissionsAreReady {
                     HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
@@ -144,6 +148,20 @@ struct SettingsView: View {
                 isGranted: readiness.snapshot.inputMonitoringGranted
             ) {
                 Button("Allow Input Monitoring…") { readiness.requestInputMonitoring() }
+            }
+
+            if !readiness.snapshot.inputMonitoringGranted {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text("Already turned on in System Settings? macOS applies Input Monitoring only to a fresh launch. If it still shows Required after reopening, remove ReasonDeck from the Input Monitoring list and allow it again.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Spacer(minLength: 12)
+
+                    Button("Quit & Reopen") { readiness.relaunch() }
+                }
+                .padding(.top, 8)
+                .accessibilityIdentifier("input-monitoring-relaunch-hint")
             }
 
             Divider()
@@ -340,6 +358,19 @@ struct SettingsView: View {
             .labelsHidden()
             .frame(minWidth: 110)
         }
+    }
+
+    private func signingAdvisory(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Permissions will not persist", systemImage: "exclamationmark.triangle")
+                .font(.headline)
+                .foregroundStyle(.orange)
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.bottom, 8)
+        .accessibilityIdentifier("signing-advisory")
     }
 
     @ViewBuilder

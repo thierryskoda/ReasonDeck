@@ -1,4 +1,5 @@
 import Foundation
+import Security
 import Testing
 @testable import ReasonDeck
 
@@ -58,4 +59,33 @@ import Testing
 
     #expect(!snapshot.inputMonitoringGranted)
     #expect(snapshot.state == .inputMonitoringRequired)
+}
+
+@Test func adHocSignatureCannotKeepPrivacyGrants() {
+    // Regression: an ad-hoc designated requirement is only a cdhash, so TCC treats every
+    // rebuild as a new app and silently denies the toggled-on entry (issue #7).
+    #expect(BuildSigningIdentity.classify(isSigned: true, flags: [.adhoc, .runtime]) == .adHoc)
+}
+
+@Test func identitySignedBuildKeepsPrivacyGrants() {
+    #expect(BuildSigningIdentity.classify(isSigned: true, flags: [.runtime]) == .stable)
+    #expect(BuildSigningIdentity.classify(isSigned: true, flags: []) == .stable)
+}
+
+@Test func unsignedBuildIsReportedBeforeAdHocFlags() {
+    #expect(BuildSigningIdentity.classify(isSigned: false, flags: []) == .unsigned)
+    #expect(BuildSigningIdentity.classify(isSigned: false, flags: [.adhoc]) == .unsigned)
+}
+
+@Test func onlyStableSigningHasNoAdvisory() {
+    #expect(BuildSigningIdentity.stable.advisory == nil)
+    #expect(BuildSigningIdentity.adHoc.advisory != nil)
+    #expect(BuildSigningIdentity.unsigned.advisory != nil)
+}
+
+@Test func signingIdentityClassifiesTheRunningTestBundleWithoutCrashing() {
+    // Whatever identity the test host has, classification must be deterministic and
+    // must fall back to `.unsigned` for a path that is not a code bundle.
+    let missing = URL(fileURLWithPath: "/nonexistent/ReasonDeck.app")
+    #expect(BuildSigningIdentity.classify(missing) == .unsigned)
 }

@@ -3,6 +3,7 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 import Observation
+import Security
 
 enum AppInstallLocation: Equatable, Sendable {
     case installed
@@ -15,6 +16,47 @@ enum AppInstallLocation: Equatable, Sendable {
         return url.deletingLastPathComponent().path == "/Applications"
             ? .installed
             : .requiresInstallation
+    }
+}
+
+/// How durably macOS can recognize this build when it stores a privacy grant.
+///
+/// TCC keys Accessibility and Input Monitoring grants by the app's designated code
+/// requirement. An identity-signed build (Apple Development or Developer ID) yields
+/// `identifier + team`, which survives rebuilds. An ad-hoc build yields only a `cdhash`,
+/// so every rebuild is a new app to TCC: System Settings keeps showing the old toggle
+/// on while the new binary is denied. See ADR-001 point 10.
+enum BuildSigningIdentity: Equatable, Sendable {
+    case stable, adHoc, unsigned
+
+    static func classify(_ bundleURL: URL) -> Self {
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(bundleURL as CFURL, [], &staticCode) == errSecSuccess,
+              let staticCode else { return .unsigned }
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(staticCode, [], &info) == errSecSuccess,
+              let info = info as? [String: Any] else { return .unsigned }
+        let flags = (info[kSecCodeInfoFlags as String] as? UInt32).map(SecCodeSignatureFlags.init(rawValue:))
+        return classify(
+            isSigned: info[kSecCodeInfoIdentifier as String] != nil,
+            flags: flags ?? []
+        )
+    }
+
+    static func classify(isSigned: Bool, flags: SecCodeSignatureFlags) -> Self {
+        guard isSigned else { return .unsigned }
+        return flags.contains(.adhoc) ? .adHoc : .stable
+    }
+
+    /// Nil when grants are expected to persist across rebuilds.
+    var advisory: String? {
+        switch self {
+        case .stable: nil
+        case .adHoc:
+            "This build is ad-hoc signed, so macOS forgets its Accessibility and Input Monitoring grants on every rebuild. Sign with a stable Apple Development team for lasting permissions."
+        case .unsigned:
+            "This build is unsigned, so macOS cannot keep its Accessibility and Input Monitoring grants. Sign with a stable Apple Development team for lasting permissions."
+        }
     }
 }
 
@@ -45,6 +87,7 @@ struct PermissionSnapshot: Equatable, Sendable {
 @Observable
 final class PermissionReadiness {
     let bundleURL: URL
+    let signingIdentity: BuildSigningIdentity
     private(set) var installLocation: AppInstallLocation
     private(set) var installationError: String?
     private(set) var isInstalling = false
@@ -53,8 +96,12 @@ final class PermissionReadiness {
         inputMonitoringGranted: false
     )
 
-    init(bundleURL: URL = Bundle.main.bundleURL) {
+    init(
+        bundleURL: URL = Bundle.main.bundleURL,
+        signingIdentity: BuildSigningIdentity? = nil
+    ) {
         self.bundleURL = bundleURL
+        self.signingIdentity = signingIdentity ?? BuildSigningIdentity.classify(bundleURL)
         installLocation = AppInstallLocation.classify(bundleURL)
     }
 
@@ -117,6 +164,19 @@ final class PermissionReadiness {
 
     func clearInstallationError() {
         installationError = nil
+    }
+
+    /// Input Monitoring is applied only to processes started after the grant, which is
+    /// why macOS offers "Quit & Reopen" when the toggle changes for a running app. Offer
+    /// the same remedy in place so a fresh grant does not look broken.
+    func relaunch() {
+        Task {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            configuration.createsNewApplicationInstance = true
+            _ = try? await NSWorkspace.shared.openApplication(at: bundleURL, configuration: configuration)
+            NSApplication.shared.terminate(nil)
+        }
     }
 
     private func openSettingsAfterRequest(_ pane: String) {
