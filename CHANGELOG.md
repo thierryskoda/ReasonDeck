@@ -12,6 +12,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 - Warn in Settings when the running build is ad-hoc signed or unsigned, because macOS then drops its Accessibility and Input Monitoring grants on every rebuild while System Settings still shows the toggle on.
 - Explain in Settings that Input Monitoring applies only to a fresh launch, with a **Quit & Reopen** action beside the Input Monitoring row while it is still required.
+- Warn in Settings when macOS parks the menu bar icon outside a display's usable status strip, with the relaunch step needed after freeing menu bar space.
 
 ### Changed
 

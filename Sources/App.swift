@@ -10,6 +10,7 @@ final class SettingsWindowController {
     func show(
         store: ProfileStore,
         readiness: PermissionReadiness,
+        menuBarReachability: MenuBarReachability,
         compatibilityHealth: CompatibilityHealth,
         beginShortcutRecording: @escaping (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool,
         cancelShortcutRecording: @escaping () -> Void
@@ -18,6 +19,7 @@ final class SettingsWindowController {
             let controller = NSHostingController(rootView: SettingsView(
                 store: store,
                 readiness: readiness,
+                menuBarReachability: menuBarReachability,
                 compatibilityHealth: compatibilityHealth,
                 beginShortcutRecording: beginShortcutRecording,
                 cancelShortcutRecording: cancelShortcutRecording
@@ -50,8 +52,13 @@ final class MenuBarViewModel {
     @ObservationIgnored private var workspaceTerminateObserver: NSObjectProtocol?
     let store: ProfileStore
     let readiness = PermissionReadiness()
+    let menuBarReachability = MenuBarReachability()
     let compatibilityHealth = CompatibilityHealth()
-    var isSwitching = false
+    @ObservationIgnored var menuBarController: MenuBarController?
+    @ObservationIgnored var menuBarPresentationDidChange: (() -> Void)?
+    var isSwitching = false {
+        didSet { menuBarPresentationDidChange?() }
+    }
     var status: OperationStatus = .ready
     var permissionState: PermissionState { readiness.state }
     var trusted: Bool { readiness.snapshot.accessibilityGranted }
@@ -129,7 +136,7 @@ final class MenuBarViewModel {
         apply(invocation)
     }
 
-    /// A MenuBarExtra button fires before macOS has fully dismissed the status menu.
+    /// A status-menu item fires before macOS has fully dismissed its menu.
     /// Wait briefly for the previously frontmost supported app and its focused window
     /// to become observable again instead of capturing ReasonDeck/Control Center.
     func applyFromMenu(_ id: UUID) {
@@ -305,10 +312,12 @@ final class MenuBarViewModel {
 
     func openSettings() {
         refreshPermissions()
+        menuBarReachability.refresh()
         compatibilityHealth.refresh()
         settingsWindowController.show(
             store: store,
             readiness: readiness,
+            menuBarReachability: menuBarReachability,
             compatibilityHealth: compatibilityHealth,
             beginShortcutRecording: { [weak self] handler in
                 self?.beginShortcutRecording(handler) ?? false
@@ -378,55 +387,6 @@ final class MenuBarViewModel {
     }
 }
 
-struct MenuBarContent: View {
-    @Bindable var model: MenuBarViewModel
-    var body: some View {
-        if model.readiness.installLocation != .installed {
-            Text("Install ReasonDeck in Applications before granting permissions.")
-            Button("Open Settings…") { model.openSettings() }
-            Divider()
-        } else if model.permissionState == .accessibilityRequired {
-            Text("ReasonDeck needs Accessibility permission to select model-menu controls. It only inspects the active ChatGPT, Claude Desktop, Cursor, or Antigravity window.")
-            Button("Allow Accessibility…") { model.readiness.requestAccessibility() }
-            Divider()
-        } else if model.permissionState == .inputMonitoringRequired {
-            Text("Input Monitoring is required for app-scoped shortcuts.")
-            Button("Allow Input Monitoring…") { model.readiness.requestInputMonitoring() }
-            Divider()
-        }
-        if model.store.entries.isEmpty {
-            Text("No shortcuts configured")
-        } else {
-            ForEach(model.store.entries) { entry in
-                let shortcut = entry.shortcut?.displayName ?? "Set shortcut in Settings"
-                let apps = entry.enabledTargets.map(\.displayName).sorted().joined(separator: " + ")
-                let label = "\(apps)    \(shortcut)"
-                Button(label) { model.applyFromMenu(entry.id) }
-                    .disabled(
-                        model.readiness.installLocation != .installed
-                            || model.isSwitching
-                            || !model.trusted
-                            || !model.store.isValid
-                            || entry.shortcut == nil
-                    )
-            }
-        }
-        Divider()
-        Button("Settings…") {
-            model.openSettings()
-        }
-        Divider()
-        Text(
-            model.readiness.installLocation == .installed
-                ? model.permissionState.message
-                : "Installation required"
-        )
-        Label(model.status.message, systemImage: model.status.systemImage).lineLimit(3)
-        Divider()
-        Button("Quit") { model.stop(); NSApplication.shared.terminate(nil) }
-    }
-}
-
 /// Reopens Settings when the user launches ReasonDeck again.
 ///
 /// The menu bar icon can be pushed into unusable space on displays with a
@@ -443,12 +403,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct ReasonDeckApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @State private var model = MenuBarViewModel(store: ProfileStore())
+    @State private var model: MenuBarViewModel
+
+    init() {
+        let model = MenuBarViewModel(store: ProfileStore())
+        _model = State(initialValue: model)
+        model.menuBarController = MenuBarController(model: model)
+    }
 
     var body: some Scene {
-        MenuBarExtra("ReasonDeck", systemImage: model.isSwitching ? "arrow.triangle.2.circlepath" : "switch.2") {
-            MenuBarContent(model: model)
+        Settings {
+            EmptyView()
         }
-        .menuBarExtraStyle(.menu)
     }
 }

@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @Bindable var store: ProfileStore
     @Bindable var readiness: PermissionReadiness
+    @Bindable var menuBarReachability: MenuBarReachability
     @Bindable var compatibilityHealth: CompatibilityHealth
     let beginShortcutRecording: (@escaping @MainActor @Sendable (ShortcutRecordingResult) -> Void) -> Bool
     let cancelShortcutRecording: () -> Void
@@ -13,6 +14,7 @@ struct SettingsView: View {
     var body: some View {
         Form {
             readinessSection
+            menuBarReachabilitySection
             compatibilitySection
 
             if store.isValid {
@@ -31,6 +33,7 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(minWidth: 620, idealWidth: 700, minHeight: 480, idealHeight: 620)
         .navigationTitle("Shortcuts")
+        .task { menuBarReachability.refresh() }
         .alert("Shortcut Unavailable", isPresented: Binding(
             get: { assignmentError != nil },
             set: { if !$0 { assignmentError = nil } }
@@ -87,6 +90,23 @@ struct SettingsView: View {
 
     private var permissionsAreReady: Bool {
         readiness.snapshot.accessibilityGranted && readiness.snapshot.inputMonitoringGranted
+    }
+
+    @ViewBuilder
+    private var menuBarReachabilitySection: some View {
+        if let advisory = menuBarReachability.advisory {
+            Section {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Menu bar icon is hidden", systemImage: "exclamationmark.triangle")
+                        .font(.headline)
+                        .foregroundStyle(.orange)
+                    Text(advisory)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityIdentifier("menu-bar-reachability-advisory")
+            }
+        }
     }
 
     private var compatibilitySection: some View {
