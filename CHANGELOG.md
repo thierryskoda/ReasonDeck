@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.3.1 - 2026-09-10
+
+### Fixed
+
+- Sort reasoning effort menus
+
 ## 0.3.0 - 2026-09-09
 
 ### Removed
