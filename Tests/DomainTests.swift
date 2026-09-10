@@ -24,6 +24,19 @@ import Testing
     #expect(AntigravityEffort.allCases.map(\.rawValue) == ["High", "Medium", "Low", "None", "(Thinking)", "(Medium)"])
 }
 
+@Test func settingsPresentReasoningEffortsInSemanticOrder() {
+    #expect(ChatGPTReasoningEffort.settingsOrder.map(\.rawValue) == [
+        "None", "Light", "Medium", "High", "Extra High", "Max", "Ultra",
+    ])
+    #expect(ClaudeCodeEffort.settingsOrder.map(\.rawValue) == [
+        "Auto", "None", "Low", "Medium", "High", "Extra High", "Max", "Ultracode",
+    ])
+    #expect(CursorEffort.settingsOrder.map(\.rawValue) == ["None", "Low", "Medium", "High"])
+    #expect(AntigravityEffort.settingsOrder.map(\.rawValue) == [
+        "None", "Low", "Medium", "High", "(Medium)", "(Thinking)",
+    ])
+}
+
 @Test func antigravityPickerStateAcceptsOnlyExactClosedSelectionLabels() {
     let requested = AntigravitySelection(model: .claudeOpus46, effort: .thinking)
 

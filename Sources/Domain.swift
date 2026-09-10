@@ -22,6 +22,10 @@ enum ChatGPTReasoningEffort: String, CaseIterable, Codable, Hashable, Sendable, 
     case max = "Max"
 
     var id: String { rawValue }
+
+    /// Settings follow increasing reasoning intensity; declaration order remains
+    /// independent because recognition code iterates every exact supported label.
+    static let settingsOrder: [Self] = [.none, .light, .medium, .high, .extraHigh, .max, .ultra]
 }
 
 enum ApplicationTarget: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
@@ -101,6 +105,10 @@ enum ClaudeCodeEffort: String, CaseIterable, Codable, Hashable, Sendable, Identi
     case ultracode = "Ultracode"
 
     var id: String { rawValue }
+
+    static let settingsOrder: [Self] = [
+        .automatic, .none, .low, .medium, .high, .extraHigh, .max, .ultracode,
+    ]
 }
 
 struct ShortcutModifiers: OptionSet, Codable, Hashable, Sendable {
@@ -258,6 +266,8 @@ enum CursorEffort: String, CaseIterable, Codable, Hashable, Sendable, Identifiab
     case high = "High"
 
     var id: String { rawValue }
+
+    static let settingsOrder: [Self] = [.none, .low, .medium, .high]
 }
 
 struct CursorSelection: Codable, Hashable, Sendable, Identifiable {
@@ -291,6 +301,8 @@ enum AntigravityEffort: String, CaseIterable, Codable, Hashable, Sendable, Ident
     case mediumParen = "(Medium)"
 
     var id: String { rawValue }
+
+    static let settingsOrder: [Self] = [.none, .low, .medium, .high, .mediumParen, .thinking]
 }
 
 struct AntigravitySelection: Codable, Hashable, Sendable, Identifiable {

@@ -50,7 +50,7 @@ The v0.2.6 signed candidate passed live exact-state switching on macOS 26.5.1 wi
 
 ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 
-ChatGPT efforts currently recognized by source: Extra High, Medium, None, Light, Ultra, High, and Max.
+ChatGPT efforts currently recognized by source, shown from lowest to highest in Settings: None, Light, Medium, High, Extra High, Max, and Ultra.
 
 Antigravity models currently recognized by source: Gemini 3.8 Flash, Gemini 3.7 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonnet 4.6, Claude Opus 4.6, and GPT-OSS 120B. ReasonDeck matches the exact combined model-and-effort row currently exposed by Antigravity; it does not treat another effort for the same model as success.
 

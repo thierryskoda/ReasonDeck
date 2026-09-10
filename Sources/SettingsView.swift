@@ -355,25 +355,25 @@ struct SettingsView: View {
         switch target {
         case .chatGPT:
             Picker("ChatGPT reasoning", selection: chatGPTEffortBinding(for: entryID)) {
-                ForEach(ChatGPTReasoningEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+                ForEach(ChatGPTReasoningEffort.settingsOrder) { effort in Text(effort.rawValue).tag(effort) }
             }
             .labelsHidden()
             .frame(minWidth: 110)
         case .claudeCode:
             Picker("Claude Desktop effort", selection: claudeCodeEffortBinding(for: entryID)) {
-                ForEach(ClaudeCodeEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+                ForEach(ClaudeCodeEffort.settingsOrder) { effort in Text(effort.rawValue).tag(effort) }
             }
             .labelsHidden()
             .frame(minWidth: 110)
         case .cursor:
             Picker("Cursor effort", selection: cursorEffortBinding(for: entryID)) {
-                ForEach(CursorEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+                ForEach(CursorEffort.settingsOrder) { effort in Text(effort.rawValue).tag(effort) }
             }
             .labelsHidden()
             .frame(minWidth: 110)
         case .antigravity:
             Picker("Antigravity effort", selection: antigravityEffortBinding(for: entryID)) {
-                ForEach(AntigravityEffort.allCases) { effort in Text(effort.rawValue).tag(effort) }
+                ForEach(AntigravityEffort.settingsOrder) { effort in Text(effort.rawValue).tag(effort) }
             }
             .labelsHidden()
             .frame(minWidth: 110)
