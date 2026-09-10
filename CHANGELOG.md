@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Fixed
+
+- Finish removing Cursor's retired session-navigation feature by deleting its legacy configuration decoder. Obsolete shortcut data now fails closed until **Reset to Empty** instead of retaining a hidden migration path.
+
 ## 0.3.1 - 2026-09-10
 
 ### Fixed

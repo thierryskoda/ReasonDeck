@@ -26,79 +26,6 @@ private struct StoredShortcutConfiguration: Codable {
     }
 }
 
-/// Version 2 included the retired Cursor session-navigation assignment. Decode it
-/// only at this migration boundary so upgrades preserve unrelated model shortcuts.
-private struct Version2StoredShortcutConfiguration: Decodable {
-    let configuration: Version2ShortcutConfiguration
-
-    init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let version = try container.decode(Int.self, forKey: .version)
-        guard version == 2 else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .version,
-                in: container,
-                debugDescription: "Unsupported shortcut configuration version."
-            )
-        }
-        configuration = try container.decode(Version2ShortcutConfiguration.self, forKey: .configuration)
-    }
-
-    private enum CodingKeys: String, CodingKey { case version, configuration }
-}
-
-private struct Version2ShortcutConfiguration: Decodable {
-    let entries: [Version2ShortcutEntry]
-
-    func migrated() throws -> ShortcutConfiguration {
-        guard Set(entries.map(\.id)).count == entries.count else {
-            throw ShortcutConfiguration.ValidationError.duplicateIdentifier
-        }
-        let shortcuts = entries.compactMap(\.shortcut).map(\.identity)
-        guard Set(shortcuts).count == shortcuts.count else {
-            throw ShortcutConfiguration.ValidationError.duplicateShortcut
-        }
-        guard entries.allSatisfy(\.hasAssignment),
-              entries.allSatisfy({ $0.cursor == nil || $0.cursorNavigation == nil }),
-              entries.filter({ $0.cursorNavigation != nil }).count <= 1
-        else {
-            throw ShortcutConfiguration.ValidationError.missingAssignment
-        }
-
-        return try ShortcutConfiguration(entries: entries.compactMap(\.migrated))
-    }
-}
-
-private struct Version2ShortcutEntry: Decodable {
-    enum CursorNavigation: String, Decodable { case nextUnreadSession }
-
-    let id: UUID
-    let shortcut: KeyboardShortcut?
-    let chatGPT: ChatGPTSelection?
-    let claudeCode: ClaudeCodeSelection?
-    let cursor: CursorSelection?
-    let antigravity: AntigravitySelection?
-    let cursorNavigation: CursorNavigation?
-
-    var hasAssignment: Bool {
-        chatGPT != nil || claudeCode != nil || cursor != nil || antigravity != nil || cursorNavigation != nil
-    }
-
-    var migrated: ShortcutEntry? {
-        guard chatGPT != nil || claudeCode != nil || cursor != nil || antigravity != nil else {
-            return nil
-        }
-        return ShortcutEntry(
-            id: id,
-            shortcut: shortcut,
-            chatGPT: chatGPT,
-            claudeCode: claudeCode,
-            cursor: cursor,
-            antigravity: antigravity
-        )
-    }
-}
-
 struct LegacyProfileSelection: Codable, Hashable, Sendable {
     let model: ChatGPTModel
     let effort: ChatGPTReasoningEffort
@@ -133,7 +60,7 @@ struct LegacyShortcutConfiguration: Codable, Sendable {
 @Observable
 final class ProfileStore {
     static let storageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v3"
-    static let version2StorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
+    static let obsoleteStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
     static let legacyStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v1"
     static let didOpenInitialSettingsKey = "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
 
@@ -153,8 +80,8 @@ final class ProfileStore {
             return
         }
 
-        if defaults.object(forKey: Self.version2StorageKey) != nil {
-            migrateVersion2Configuration()
+        if defaults.object(forKey: Self.obsoleteStorageKey) != nil {
+            invalidateSavedConfiguration()
             return
         }
 
@@ -398,19 +325,6 @@ final class ProfileStore {
         }
     }
 
-    private func migrateVersion2Configuration() {
-        guard let data = defaults.data(forKey: Self.version2StorageKey) else {
-            invalidateSavedConfiguration()
-            return
-        }
-        do {
-            let stored = try JSONDecoder().decode(Version2StoredShortcutConfiguration.self, from: data)
-            save(try stored.configuration.migrated())
-        } catch {
-            invalidateSavedConfiguration()
-        }
-    }
-
     private func migrateLegacyConfiguration() {
         guard let data = defaults.data(forKey: Self.legacyStorageKey) else {
             invalidateSavedConfiguration()
@@ -421,7 +335,7 @@ final class ProfileStore {
             let migrated = try legacy.migrated()
             let encoded = try JSONEncoder().encode(StoredShortcutConfiguration(configuration: migrated))
             defaults.set(encoded, forKey: Self.storageKey)
-            defaults.removeObject(forKey: Self.version2StorageKey)
+            defaults.removeObject(forKey: Self.obsoleteStorageKey)
             defaults.removeObject(forKey: Self.legacyStorageKey)
             configuration = migrated
         } catch {
@@ -435,7 +349,7 @@ final class ProfileStore {
                 try JSONEncoder().encode(StoredShortcutConfiguration(configuration: configuration)),
                 forKey: Self.storageKey
             )
-            defaults.removeObject(forKey: Self.version2StorageKey)
+            defaults.removeObject(forKey: Self.obsoleteStorageKey)
             defaults.removeObject(forKey: Self.legacyStorageKey)
             self.configuration = configuration
             invalidReason = nil

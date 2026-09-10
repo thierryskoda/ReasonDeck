@@ -243,51 +243,17 @@ private func isolatedDefaults() -> UserDefaults {
 }
 
 @MainActor
-@Test func version2MigrationRemovesNavigationAndPreservesOtherAssignments() throws {
+@Test func obsoleteConfigurationFailsClosedUntilReset() {
     let defaults = unconfiguredDefaults()
-    let id = UUID()
-    let payload: [String: Any] = [
-        "version": 2,
-        "configuration": ["entries": [[
-            "id": id.uuidString,
-            "shortcut": NSNull(),
-            "chatGPT": ["model": "5.6 Sol", "effort": "High"],
-            "claudeCode": NSNull(),
-            "cursor": NSNull(),
-            "antigravity": NSNull(),
-            "cursorNavigation": "nextUnreadSession"
-        ]]]
-    ]
-    defaults.set(try JSONSerialization.data(withJSONObject: payload), forKey: ProfileStore.version2StorageKey)
+    defaults.set(Data("obsolete".utf8), forKey: ProfileStore.obsoleteStorageKey)
 
     let store = ProfileStore(defaults: defaults)
 
-    #expect(store.isValid)
-    #expect(store.entries.count == 1)
-    #expect(store.entry(id: id)?.chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
-    #expect(defaults.object(forKey: ProfileStore.version2StorageKey) == nil)
-    #expect(defaults.object(forKey: ProfileStore.storageKey) != nil)
-}
-
-@MainActor
-@Test func version2MigrationDropsNavigationOnlyEntry() throws {
-    let defaults = unconfiguredDefaults()
-    let payload: [String: Any] = [
-        "version": 2,
-        "configuration": ["entries": [[
-            "id": UUID().uuidString,
-            "shortcut": NSNull(),
-            "chatGPT": NSNull(),
-            "claudeCode": NSNull(),
-            "cursor": NSNull(),
-            "antigravity": NSNull(),
-            "cursorNavigation": "nextUnreadSession"
-        ]]]
-    ]
-    defaults.set(try JSONSerialization.data(withJSONObject: payload), forKey: ProfileStore.version2StorageKey)
-
-    let store = ProfileStore(defaults: defaults)
-
-    #expect(store.isValid)
+    #expect(!store.isValid)
     #expect(store.entries.isEmpty)
+
+    store.reset()
+    #expect(store.isValid)
+    #expect(defaults.object(forKey: ProfileStore.obsoleteStorageKey) == nil)
+    #expect(ProfileStore(defaults: defaults).entries.isEmpty)
 }
