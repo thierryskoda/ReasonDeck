@@ -60,6 +60,7 @@ final class MenuBarViewModel {
         didSet { menuBarPresentationDidChange?() }
     }
     var status: OperationStatus = .ready
+    private(set) var lastFailureDiagnostic: FailureDiagnostic?
     var permissionState: PermissionState { readiness.state }
     var trusted: Bool { readiness.snapshot.accessibilityGranted }
     init(store: ProfileStore) {
@@ -157,6 +158,7 @@ final class MenuBarViewModel {
         let attemptID = UUID()
         let clock = ContinuousClock()
         let start = clock.now
+        lastFailureDiagnostic = nil
         guard !isSwitching else {
             status = .busy
             log(AttemptEvent(
@@ -227,6 +229,7 @@ final class MenuBarViewModel {
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: .alreadyApplied, failure: nil, elapsed: start.duration(to: clock.now)))
             case .partialFailure(let applied, let title, let failure):
                 status = .partial(title: title, message: failure.message)
+                recordFailureDiagnostic(for: applied.target, failure: failure.diagnosticCode)
                 if CompatibilityPolicy.isContractFailure(failure.diagnosticCode) {
                     compatibilityHealth.recordFailure(failure.diagnosticCode, for: applied.target)
                 } else {
@@ -236,6 +239,7 @@ final class MenuBarViewModel {
                 NSSound.beep()
             case .failure(let applied, let failure):
                 status = failure == .busy ? .busy : .failure(failure.message)
+                recordFailureDiagnostic(for: applied.target, failure: failure.diagnosticCode)
                 compatibilityHealth.recordFailure(failure.diagnosticCode, for: applied.target)
                 log(AttemptEvent(attemptID: attemptID, target: applied.target, request: request, identitySource: invocation.identitySource, phase: .completed, outcome: failure == .busy ? .busy : .failure, failure: failure.diagnosticCode, elapsed: start.duration(to: clock.now)))
                 NSSound.beep()
@@ -250,6 +254,28 @@ final class MenuBarViewModel {
 
     private var reasonDeckBuild: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+    }
+
+    private var reasonDeckVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown"
+    }
+
+    private func recordFailureDiagnostic(for target: ApplicationTarget, failure: AttemptFailureCode) {
+        lastFailureDiagnostic = FailureDiagnostic(
+            reasonDeckVersion: reasonDeckVersion,
+            reasonDeckBuild: reasonDeckBuild,
+            macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+            target: target,
+            targetVersion: targetVersion(target),
+            failure: failure
+        )
+    }
+
+    func copyLastFailureDiagnostic() {
+        guard let lastFailureDiagnostic else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(lastFailureDiagnostic.clipboardText, forType: .string)
     }
 
     private func targetVersion(_ target: ApplicationTarget) -> String {

@@ -84,6 +84,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let status = addInformationalItem(model.status.message)
         status.image = NSImage(systemSymbolName: model.status.systemImage, accessibilityDescription: nil)
 
+        if model.lastFailureDiagnostic != nil {
+            addAction("Copy Failure Details", action: #selector(copyFailureDetails))
+        }
+
         menu.addItem(.separator())
         addAction("Quit", action: #selector(quit))
     }
@@ -227,6 +231,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func requestInputMonitoring() {
         model.readiness.requestInputMonitoring()
+    }
+
+    @objc private func copyFailureDetails() {
+        model.copyLastFailureDiagnostic()
     }
 
     @objc private func applyEntry(_ sender: NSMenuItem) {

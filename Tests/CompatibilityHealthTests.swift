@@ -24,6 +24,13 @@ private final class CompatibilityInventoryStub {
     #expect(CompatibilityPolicy.certification(for: .antigravity, version: "2.8.2") == .unverified)
 }
 
+@Test func compatibilityTitlesDescribeWhoActuallyTestedTheVersion() {
+    #expect(CompatibilityStatus.verified.title == "Tested by us")
+    #expect(CompatibilityStatus.workingUnverified.title == "Working on this Mac")
+    #expect(CompatibilityStatus.unknown.title == "Not tested yet")
+    #expect(CompatibilityStatus.needsUpdate.title == "Needs update")
+}
+
 @Test func statusSeparatesCertificationFromObservedRuntimeHealth() {
     let verified = CompatibilitySnapshot(
         target: .claudeCode,

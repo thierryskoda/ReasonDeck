@@ -12,18 +12,20 @@ Version allowlisting alone would be equally brittle: harmless patch releases wou
 ## Decision
 
 1. Show one compact compatibility row per supported app in Settings, including its locally detected version and whether it is running.
-2. Label an exact version **Verified** only when its source-owned certification set is backed by recorded signed-live switching evidence. Never infer certification from semantic version proximity.
-3. Label an uncertified version **Working, unverified** only after a successful or already-applied profile transaction in that exact running process. A non-contract partial result, such as an unavailable entitled effort after a verified model change, also proves the adapter is working without certifying the version.
+2. Label an exact version **Tested by us** only when its source-owned certification set is backed by recorded signed-live switching evidence. Never infer certification from semantic version proximity.
+3. Label an uncertified version **Working on this Mac** only after a successful or already-applied profile transaction in that exact running process. A non-contract partial result, such as an unavailable entitled effort after a verified model change, also proves the adapter is working without certifying the version.
 4. Label an app **Needs update** only after a typed picker-contract, action, timeout, or final-verification failure. Do not degrade compatibility health for permissions, installation, focus, target drift, invalid configuration, a missing supported composer, account entitlement, or a missing exact choice.
 5. Bind every runtime observation to the exact app version and process identifier. Discard it when the app quits, relaunches, or changes version. Keep observations in memory only; do not add telemetry, network access, UI dumps, or persistent diagnostics.
 6. Treat **Unknown** as advisory, not a version gate. Existing adapters remain authoritative: they must prove the correct frontmost window, supported composer, owned picker, exact label, actionable control, and final state before reporting success. They stop instead of guessing when that proof fails.
 7. Update health by observing existing typed switch results. Do not add picker probes, clicks, keystrokes, or Accessibility reads solely for compatibility reporting.
+8. After an actual adapter failure, offer **Copy Failure Details** in the menu-bar menu. Copy only the ReasonDeck version/build, macOS version, target app/version, and closed failure code. Never copy Accessibility labels, window text, or free-form error details; create the report only in memory and put it on the clipboard only after the user chooses the action.
 
 ## Consequences
 
 - Users can distinguish a known live-tested version, a locally working newer version, and a failed picker contract without ReasonDeck pretending every app update is safe.
 - A new version can continue working immediately when its verified structure is unchanged, but it is not publicly certified until signed live evidence is recorded in source.
 - **Needs update** is a strong compatibility signal, not a diagnosis by itself. Retrying in the documented idle layout separates a transient surface issue from persistent UI drift.
+- GitHub issue reports can include useful version and failure evidence without telemetry or chat/editor content.
 - The feature does not make private UI stable. It makes uncertainty and fail-closed behavior visible while preserving the exact per-app adapter contracts.
 
 ## Supersession condition

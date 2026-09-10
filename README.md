@@ -71,12 +71,13 @@ Cursor support expects an idle Agent or Chat composer with its model chip visibl
 
 Compilation and unit tests are not compatibility proof. Each supported app version needs a signed live check before it is claimed for a release.
 
-Settings labels an exact version **Verified** only when that version has recorded signed-live evidence. A successful switch on another version becomes **Working, unverified** for that running app process. **Unknown** does not mean blocked: ReasonDeck still tries its strict adapter contract and never selects a picker row until the required surface, menu ownership, and exact label are verified. A picker-contract failure becomes **Needs update** for only that process and version; permission, focus, missing-composer, entitlement, and unavailable-model errors do not change compatibility health. Runtime observations are not persisted and reset when the app quits or changes version.
+Settings labels an exact version **Tested by us** only when that version has recorded signed-live evidence. Other versions are not blocked: a successful shortcut becomes **Working on this Mac** for that running app process. **Not tested yet** means ReasonDeck will still try its strict adapter contract and will not select a picker row until the required surface, menu ownership, and exact label are verified. A picker-contract failure becomes **Needs update** for only that process and version; permission, focus, missing-composer, entitlement, and unavailable-model errors do not change compatibility health. Runtime observations are not persisted and reset when the app quits or changes version.
 
 ## Privacy and safety
 
 - No network implementation, analytics, or account credentials.
 - No collection, storage, logging, or transmission of chat or editor content.
+- **Copy Failure Details** copies only ReasonDeck, macOS, and target-app versions plus a closed failure code; it never includes Accessibility labels or window text.
 - Shortcuts capture the frontmost supported process, then verify its focused window before switching.
 - ChatGPT, Claude Desktop, Cursor, and Antigravity recheck that target before actions and verify the final selection.
 - Model and effort labels are closed sets in source.
@@ -98,6 +99,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 - **Cursor's model control is unavailable:** Open the Agents sidebar and leave an idle Agent or Chat composer visible.
 - **A model is unavailable:** The account or app no longer exposes the exact saved label. ReasonDeck does not substitute a similar model.
 - **Compatibility says Needs update:** Retry once with the supported idle composer visible. If it persists for that app version, its Accessibility picker contract has changed and ReasonDeck needs a compatibility update; it will not guess at a replacement control.
+- **Reporting a switching problem:** Choose **Copy Failure Details** from the ReasonDeck menu after the failure and paste the report into a GitHub issue.
 - **Saved shortcuts are invalid:** Open Settings and choose **Reset to Empty**. Invalid persisted configuration stays disabled until you explicitly reset it.
 
 ## Build from source

@@ -198,6 +198,25 @@ import Testing
     #expect(OperationStatus.invalidConfiguration("Reset").message == "Reset")
 }
 
+@Test func failureDiagnosticsContainOnlyVersionsTargetAndClosedFailureCode() {
+    let diagnostic = FailureDiagnostic(
+        reasonDeckVersion: "0.3.2",
+        reasonDeckBuild: "12",
+        macOSVersion: "macOS 26.0",
+        target: .cursor,
+        targetVersion: "4.0.1",
+        failure: .verificationMismatch
+    )
+
+    #expect(diagnostic.clipboardText == """
+    ReasonDeck failure report
+    ReasonDeck: 0.3.2 (12)
+    macOS: macOS 26.0
+    App: Cursor 4.0.1
+    Failure: verification_mismatch
+    """)
+}
+
 @Test func attemptDiagnosticsAllowOnlyClosedFields() {
     let event = AttemptEvent(
         attemptID: UUID(),

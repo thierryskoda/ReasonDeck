@@ -16,9 +16,9 @@ enum CompatibilityStatus: Equatable, Sendable {
 
     var title: String {
         switch self {
-        case .verified: "Verified"
-        case .workingUnverified: "Working, unverified"
-        case .unknown: "Unknown"
+        case .verified: "Tested by us"
+        case .workingUnverified: "Working on this Mac"
+        case .unknown: "Not tested yet"
         case .needsUpdate: "Needs update"
         case .notInstalled: "Not installed"
         }

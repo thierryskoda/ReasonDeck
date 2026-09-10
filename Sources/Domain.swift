@@ -586,6 +586,27 @@ struct AttemptEvent: Equatable, Sendable {
     }
 }
 
+/// Clipboard-safe failure details for issue reports. The type deliberately has
+/// no field for Accessibility labels, window text, or the free-form error message.
+struct FailureDiagnostic: Equatable, Sendable {
+    let reasonDeckVersion: String
+    let reasonDeckBuild: String
+    let macOSVersion: String
+    let target: ApplicationTarget
+    let targetVersion: String
+    let failure: AttemptFailureCode
+
+    var clipboardText: String {
+        """
+        ReasonDeck failure report
+        ReasonDeck: \(reasonDeckVersion) (\(reasonDeckBuild))
+        macOS: \(macOSVersion)
+        App: \(target.displayName) \(targetVersion)
+        Failure: \(failure.rawValue)
+        """
+    }
+}
+
 enum ProfileSwitchResult: Equatable, Sendable {
     case success(profile: TargetSelection, observedTitle: String, elapsed: Duration)
     case alreadyApplied(profile: TargetSelection, observedTitle: String)

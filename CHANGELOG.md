@@ -2,6 +2,20 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Added
+
+- Offer **Copy Failure Details** after a switching failure so GitHub reports can include ReasonDeck, macOS, and target-app versions plus a privacy-safe failure code.
+
+### Changed
+
+- Describe exact live-tested versions as **Tested by us**, successful unknown versions as **Working on this Mac**, and untouched versions as **Not tested yet**. Unknown versions remain usable and prove compatibility through the normal shortcut path.
+
+### Safety
+
+- Keep copied failure reports in memory until explicitly requested, and exclude Accessibility labels, window text, chat/editor content, and free-form error details.
+
 ## 0.3.2 - 2026-09-10
 
 ### Fixed

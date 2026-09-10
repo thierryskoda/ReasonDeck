@@ -129,7 +129,7 @@ struct SettingsView: View {
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text("Verified means that exact app version passed a signed live check. Unknown versions still use strict picker checks and stop instead of guessing when the UI changed.")
+                Text("Tested by us means that exact version passed our live release check. Other versions are not blocked: a successful shortcut marks them Working on this Mac, and ReasonDeck stops instead of guessing when the interface changed.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
