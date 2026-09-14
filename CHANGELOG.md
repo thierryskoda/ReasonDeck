@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.4.1 - 2026-09-14
+
+### Fixed
+
+- Explain refused privacy grants on both permissions
+
 ## 0.4.0 - 2026-09-10
 
 ### Added
