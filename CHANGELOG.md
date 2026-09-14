@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.4.2 - 2026-09-14
+
+### Fixed
+
+- Keep the shortcuts an upgrade can still run
+
 ## 0.4.1 - 2026-09-14
 
 ### Fixed
