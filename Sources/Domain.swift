@@ -87,6 +87,10 @@ enum RuntimeCapabilities {
 }
 
 enum ClaudeCodeModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
+    // Claude Desktop 1.52386.3 labels its top tier "Fable 5.1". "Fable 5" stays
+    // until live evidence shows Claude no longer offers it; retire it by deleting
+    // the case and letting the decoder drop stale assignments.
+    case fable51 = "Fable 5.1"
     case fable5 = "Fable 5"
     case opus5 = "Opus 5"
     case sonnet5 = "Sonnet 5"

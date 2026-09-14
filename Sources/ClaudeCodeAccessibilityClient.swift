@@ -17,6 +17,11 @@ enum ClaudeChatLabels {
     ]
 
     private static let pickerModels: [String: ClaudeCodeModel] = [
+        // Fable 5.1 rows mirror the observed Fable 5 forms; only the Code
+        // composer title has been live-read on 1.52386.3. See ADR-002.
+        "Fable 5.1 Requires usage credits For your toughest challenges": .fable51,
+        "Fable 5.1 Requires usage credits": .fable51,
+        "Fable 5.1": .fable51,
         "Fable 5 Requires usage credits For your toughest challenges": .fable5,
         "Fable 5 Requires usage credits": .fable5,
         "Opus 5 For complex tasks": .opus5,
@@ -94,6 +99,7 @@ enum ClaudeChatModelRouting {
 
 enum ClaudeCodeLabels {
     private static let pickerModels: [String: ClaudeCodeModel] = [
+        "Fable 5.1 Requires usage credits": .fable51,
         "Fable 5 Requires usage credits": .fable5,
         "Opus 5": .opus5,
         "Sonnet 5": .sonnet5,
@@ -182,6 +188,29 @@ enum ClaudeAccessibilityPreparationPolicy {
     static func shouldPrepare(after failure: SwitchFailure) -> Bool {
         if case .claudeCodeSurfaceNotFound = failure { return true }
         return false
+    }
+
+    struct Attempt: Equatable, Sendable {
+        let pid: pid_t
+        let instant: ContinuousClock.Instant
+    }
+
+    // Chromium can drop and rebuild Claude's web Accessibility tree many times
+    // within one process lifetime, so this cannot be a once-per-process latch:
+    // one spent attempt left every later shortcut polling an empty tree until
+    // Claude happened to republish on its own. Re-assert it, but at most once
+    // per cooldown, because each attempt can rebuild Chromium's focused window
+    // and costs a bounded republish wait.
+    static let retryCooldown: Duration = .seconds(30)
+
+    static func shouldAttempt(
+        pid: pid_t,
+        lastAttempt: Attempt?,
+        now: ContinuousClock.Instant,
+        cooldown: Duration = retryCooldown
+    ) -> Bool {
+        guard let lastAttempt, lastAttempt.pid == pid else { return true }
+        return lastAttempt.instant.duration(to: now) >= cooldown
     }
 
     static func windowState(
@@ -305,7 +334,7 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
     )
     private let deadline: Duration = .seconds(2)
     private let pollInterval: Duration = .milliseconds(50)
-    private var accessibilityPreparationAttemptedPID: pid_t?
+    private var lastPreparationAttempt: ClaudeAccessibilityPreparationPolicy.Attempt?
 
     func selectModel(_ model: ClaudeCodeModel, invocation: HotkeyInvocation) async throws -> String {
         switch try await preparedSurface(invocation: invocation) {
@@ -341,7 +370,15 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
 
     private func prepareWebAccessibility(invocation: HotkeyInvocation) async throws {
         try validate(invocation, requiresCodeSurface: false)
-        guard accessibilityPreparationAttemptedPID != invocation.pid else { return }
+        let now = ContinuousClock().now
+        guard ClaudeAccessibilityPreparationPolicy.shouldAttempt(
+            pid: invocation.pid,
+            lastAttempt: lastPreparationAttempt,
+            now: now
+        ) else { return }
+        // Record before acting so a throw below still counts toward the cooldown.
+        lastPreparationAttempt = .init(pid: invocation.pid, instant: now)
+        logger.info("Re-enabling Claude web accessibility pid=\(invocation.pid, privacy: .public)")
         let application = AXUIElementCreateApplication(invocation.pid)
         let manualResult = AXUIElementSetAttributeValue(
             application,
@@ -353,7 +390,6 @@ actor SystemClaudeCodeUIClient: ClaudeCodeUIClient {
             "AXEnhancedUserInterface" as CFString,
             kCFBooleanTrue
         )
-        accessibilityPreparationAttemptedPID = invocation.pid
         if enhancedResult == .success {
             try await waitForCapturedWindowAfterPreparation(invocation: invocation)
         } else {

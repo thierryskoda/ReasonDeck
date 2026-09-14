@@ -355,6 +355,48 @@ private let claudeInvocation = HotkeyInvocation(
     )
 }
 
+@Test func claudeWebAccessibilityPreparationRetriesAfterCooldownNotOncePerProcess() {
+    let now = ContinuousClock().now
+    let spent = ClaudeAccessibilityPreparationPolicy.Attempt(pid: 42, instant: now)
+    #expect(ClaudeAccessibilityPreparationPolicy.shouldAttempt(pid: 42, lastAttempt: nil, now: now))
+    #expect(
+        !ClaudeAccessibilityPreparationPolicy.shouldAttempt(
+            pid: 42,
+            lastAttempt: spent,
+            now: now.advanced(by: .seconds(29))
+        )
+    )
+    #expect(
+        ClaudeAccessibilityPreparationPolicy.shouldAttempt(
+            pid: 42,
+            lastAttempt: spent,
+            now: now.advanced(by: .seconds(30))
+        )
+    )
+    #expect(ClaudeAccessibilityPreparationPolicy.shouldAttempt(pid: 99, lastAttempt: spent, now: now))
+}
+
+@Test func claudeDesktopTreatsFable51AsItsOwnExactModel() {
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5.1") == .fable51)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5") == .fable5)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Fable 5.1") == .fable51)
+    #expect(
+        ClaudeCodeLabels.modelControlTitles(for: .fable51)
+            == Set(["Fable 5.1", "Model: Fable 5.1"])
+    )
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5.1 Requires usage credits") == .fable51)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5.1") == nil)
+    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Fable 5.1 High")?.model == .fable51)
+    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Fable 5.1 High")?.effort == .high)
+    #expect(ClaudeChatLabels.model(inPickerRow: "Fable 5.1") == .fable51)
+    #expect(
+        ClaudeChatLabels.model(
+            inPickerRow: "Fable 5.1 Requires usage credits For your toughest challenges"
+        ) == .fable51
+    )
+    #expect(ClaudeChatLabels.model(inPickerRow: "Fable 5.2") == nil)
+}
+
 @Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
     #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)

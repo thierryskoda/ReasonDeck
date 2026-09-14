@@ -2,6 +2,13 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Fixed
+
+- Keep retrying Claude Desktop's Accessibility preparation instead of spending it once per Claude launch, so shortcuts recover on their own when Claude's web tree goes blank mid-session.
+- Recognize **Fable 5.1** in Claude Desktop, so shortcuts keep working while it is the current model and it can be assigned in Settings.
+
 ## 0.4.6 - 2026-09-17
 
 ### Fixed
