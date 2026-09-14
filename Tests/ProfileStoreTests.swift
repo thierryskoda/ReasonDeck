@@ -290,45 +290,29 @@ private let supersededPayloadWithRetiredFeature = """
     #expect(store.entries.map { $0.shortcut?.displayName } == ["\u{21e7}\u{2318}1", "\u{21e7}\u{2318}2"])
     #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
     #expect(store.entries[1].chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
-
-    // The navigation-only entry had nothing left to run, so it is reported as removed.
-    #expect(store.losses.removedShortcuts.count == 1)
-    #expect(store.losses.removedAssignments.isEmpty)
 }
 
 @MainActor
-@Test func aRecoveredReadIsNotWrittenBackUntilItIsAccepted() throws {
-    // The report has to survive a relaunch, so a first launch cannot quietly rewrite the
-    // user's shortcuts before they have seen what changed.
+@Test func aSupersededPayloadIsNormalizedSoItIsNotReReadEveryLaunch() {
     let defaults = unconfiguredDefaults()
     defaults.set(Data(supersededPayloadWithRetiredFeature.utf8), forKey: ProfileStore.supersededStorageKey)
 
     _ = ProfileStore(defaults: defaults)
-    #expect(defaults.object(forKey: ProfileStore.supersededStorageKey) != nil)
-    #expect(defaults.object(forKey: ProfileStore.storageKey) == nil)
 
-    let relaunched = ProfileStore(defaults: defaults)
-    #expect(!relaunched.losses.isEmpty)
-
-    relaunched.acceptRecoveredConfiguration()
-    #expect(relaunched.losses.isEmpty)
     #expect(defaults.object(forKey: ProfileStore.supersededStorageKey) == nil)
-
-    let afterAccepting = ProfileStore(defaults: defaults)
-    #expect(afterAccepting.entries.count == 2)
-    #expect(afterAccepting.losses.isEmpty)
+    #expect(defaults.object(forKey: ProfileStore.storageKey) != nil)
+    #expect(ProfileStore(defaults: defaults).entries.count == 2)
 }
 
 @MainActor
-@Test func anUnchangedConfigurationReportsNothingAndKeepsEveryShortcut() {
-    // The ordinary upgrade: nothing the user saved was retired, so nothing is reported.
+@Test func anUnchangedConfigurationKeepsEveryShortcut() {
+    // The ordinary upgrade: nothing the user saved was retired, so nothing changes.
     let defaults = isolatedDefaults()
     let store = ProfileStore(defaults: defaults)
     let id = try! #require(store.addEntry())
     store.setClaudeCodeModel(.opus5, for: id)
 
     let reopened = ProfileStore(defaults: defaults)
-    #expect(reopened.losses.isEmpty)
     #expect(reopened.entries.count == store.entries.count)
 }
 
@@ -350,10 +334,6 @@ private let supersededPayloadWithRetiredFeature = """
     #expect(store.entries.count == 1)
     #expect(store.entries[0].chatGPT == nil)
     #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
-    #expect(store.losses.removedAssignments == [
-        "ChatGPT was removed from \u{21e7}\u{2318}1 because that model or effort is no longer supported."
-    ])
-    #expect(store.losses.removedShortcuts.isEmpty)
 }
 
 @MainActor
@@ -375,12 +355,6 @@ private let supersededPayloadWithRetiredFeature = """
 
     #expect(store.entries.count == 1)
     #expect(store.entries[0].shortcut?.displayName == "\u{21e7}\u{2318}2")
-    #expect(store.losses.removedAssignments == [
-        "ChatGPT was removed from \u{21e7}\u{2318}1 because that model or effort is no longer supported."
-    ])
-    #expect(store.losses.removedShortcuts == [
-        "\u{21e7}\u{2318}1 was removed because nothing in it is still supported."
-    ])
 }
 
 @MainActor
@@ -395,20 +369,6 @@ private let supersededPayloadWithRetiredFeature = """
 
     let store = ProfileStore(defaults: defaults)
     #expect(!store.isValid)
-}
-
-@MainActor
-@Test func aRemovalWithNoKeyCombinationStillReadsAsASentence() {
-    // The retired entry in a version 2 file has no key combination, so the report has to name
-    // it in a way that reads correctly rather than printing an empty label.
-    let defaults = unconfiguredDefaults()
-    defaults.set(Data(supersededPayloadWithRetiredFeature.utf8), forKey: ProfileStore.supersededStorageKey)
-
-    let store = ProfileStore(defaults: defaults)
-
-    #expect(store.losses.removedShortcuts == [
-        "A shortcut with no key combination was removed because nothing in it is still supported."
-    ])
 }
 
 @MainActor
@@ -436,9 +396,6 @@ private let supersededPayloadWithRetiredFeature = """
     #expect(store.entries.count == 2)
     #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
     #expect(store.entries[1].chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
-    #expect(store.losses.removedShortcuts == [
-        "\u{21e7}\u{2318}1 was removed because nothing in it is still supported."
-    ])
 }
 
 @MainActor
@@ -460,7 +417,6 @@ private let supersededPayloadWithRetiredFeature = """
 
     #expect(store.entries.count == 1)
     #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
-    #expect(store.losses.removedShortcuts.count == 1)
 }
 
 @MainActor
@@ -481,5 +437,4 @@ private let supersededPayloadWithRetiredFeature = """
 
     #expect(store.entries.count == 1)
     #expect(store.entries[0].chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
-    #expect(store.losses.removedShortcuts.count == 1)
 }
