@@ -410,3 +410,76 @@ private let supersededPayloadWithRetiredFeature = """
         "A shortcut with no key combination was removed because nothing in it is still supported."
     ])
 }
+
+@MainActor
+@Test func aDuplicateKeyCombinationIsDroppedRatherThanInvalidatingTheFile() {
+    // Two entries claiming the same keys cannot be told apart at dispatch. The first is kept
+    // and the second reported, instead of the pair invalidating every other shortcut.
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"configuration":{"entries":[
+     {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+      "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
+      "claudeCode":{"model":"Sonnet 5","effort":"High"}},
+     {"id":"72413D4A-2083-4902-A6BB-E109C02E9D66",
+      "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
+      "claudeCode":{"model":"Opus 5","effort":"High"}},
+     {"id":"9A8B6EB6-F7CC-4452-BA30-242365F7560D",
+      "shortcut":{"keyCode":19,"keyLabel":"2","modifiers":9},
+      "chatGPT":{"model":"5.6 Sol","effort":"High"}}
+    ]},"version":3}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.entries.count == 2)
+    #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
+    #expect(store.entries[1].chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
+    #expect(store.losses.removedShortcuts == [
+        "\u{21e7}\u{2318}1 was removed because nothing in it is still supported."
+    ])
+}
+
+@MainActor
+@Test func aRepeatedIdentifierIsDroppedRatherThanInvalidatingTheFile() {
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"configuration":{"entries":[
+     {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+      "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
+      "claudeCode":{"model":"Sonnet 5","effort":"High"}},
+     {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+      "shortcut":{"keyCode":19,"keyLabel":"2","modifiers":9},
+      "claudeCode":{"model":"Opus 5","effort":"High"}}
+    ]},"version":3}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.entries.count == 1)
+    #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
+    #expect(store.losses.removedShortcuts.count == 1)
+}
+
+@MainActor
+@Test func anEntryTooDamagedToReadDoesNotEndTheArray() {
+    // The array-level guard: an element that is not an object at all is skipped, not fatal.
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"configuration":{"entries":[
+     "not-an-entry",
+     {"id":"72413D4A-2083-4902-A6BB-E109C02E9D66",
+      "shortcut":{"keyCode":19,"keyLabel":"2","modifiers":9},
+      "chatGPT":{"model":"5.6 Sol","effort":"High"}}
+    ]},"version":3}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.entries.count == 1)
+    #expect(store.entries[0].chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
+    #expect(store.losses.removedShortcuts.count == 1)
+}
