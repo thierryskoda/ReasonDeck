@@ -15,7 +15,6 @@ struct SettingsView: View {
         Form {
             readinessSection
             menuBarReachabilitySection
-            recoveredConfigurationSection
             compatibilitySection
 
             if store.isValid {
@@ -106,40 +105,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityIdentifier("menu-bar-reachability-advisory")
-            }
-        }
-    }
-
-    /// Says what an upgrade could not keep, and keeps saying it until the user accepts.
-    ///
-    /// A shortcut that lost one of its apps still looks fine in the library, so this is the
-    /// only place the loss is visible. It must not be dismissible by accident.
-    @ViewBuilder
-    private var recoveredConfigurationSection: some View {
-        if !store.losses.isEmpty {
-            Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Some saved settings are no longer supported", systemImage: "exclamationmark.triangle")
-                        .font(.headline)
-                        .foregroundStyle(.orange)
-
-                    ForEach(store.losses.removedAssignments + store.losses.removedShortcuts, id: \.self) { loss in
-                        Text(loss)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Text("Everything else was kept exactly as you had it. Nothing was substituted.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    HStack {
-                        Spacer(minLength: 12)
-                        Button("Keep the Rest") { store.acceptRecoveredConfiguration() }
-                            .keyboardShortcut(.defaultAction)
-                    }
-                }
-                .accessibilityIdentifier("recovered-configuration-advisory")
             }
         }
     }

@@ -75,8 +75,6 @@ final class ProfileStore {
 
     private(set) var configuration: ShortcutConfiguration?
     private(set) var invalidReason: String?
-    /// What the last read could not keep. Cleared once the user accepts it or saves over it.
-    private(set) var losses = ConfigurationLosses()
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored var onChange: (@MainActor () -> Void)?
 
@@ -322,35 +320,24 @@ final class ProfileStore {
     }
 
     /// Reads a stored configuration, keeping whatever this build can still honor.
-    ///
-    /// What survived is deliberately not written back here. Leaving the stored data alone
-    /// means the loss is reported again on every launch until the user accepts it, instead
-    /// of a first launch quietly rewriting their shortcuts while they are not looking.
     private func loadStoredConfiguration(forKey key: String) {
         guard let data = defaults.data(forKey: key) else {
             invalidateSavedConfiguration()
             return
         }
 
-        let log = ConfigurationLossLog()
-        let decoder = JSONDecoder()
-        decoder.userInfo[ConfigurationLossLog.userInfoKey] = log
-
         do {
-            configuration = try decoder.decode(StoredShortcutConfiguration.self, from: data).configuration
-            losses = log.losses
+            let recovered = try JSONDecoder().decode(StoredShortcutConfiguration.self, from: data).configuration
+            if key == Self.storageKey {
+                configuration = recovered
+            } else {
+                // Written under a superseded key: normalize it now so the old key does not
+                // linger and get re-read on every later launch.
+                save(recovered)
+            }
         } catch {
             invalidateSavedConfiguration()
         }
-    }
-
-    /// Commit what survived a read, which also clears the superseded keys.
-    ///
-    /// Explicit because the user is agreeing to the loss. Nothing about a recovered read is
-    /// applied to storage until they do.
-    func acceptRecoveredConfiguration() {
-        guard let configuration else { return }
-        save(configuration)
     }
 
     private func migrateLegacyConfiguration() {
@@ -381,7 +368,6 @@ final class ProfileStore {
             defaults.removeObject(forKey: Self.legacyStorageKey)
             self.configuration = configuration
             invalidReason = nil
-            losses = ConfigurationLosses()
             onChange?()
         } catch {
             invalidate("Profiles could not be saved. Reset to continue.")

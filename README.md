@@ -100,7 +100,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 - **A model is unavailable:** The account or app no longer exposes the exact saved label. ReasonDeck does not substitute a similar model.
 - **Compatibility says Needs update:** Retry once with the supported idle composer visible. If it persists for that app version, its Accessibility picker contract has changed and ReasonDeck needs a compatibility update; it will not guess at a replacement control.
 - **Reporting a switching problem:** Choose **Copy Failure Details** from the ReasonDeck menu after the failure and paste the report into a GitHub issue.
-- **Settings says some saved settings are no longer supported:** An update retired a model, an effort, or a whole feature you had saved. ReasonDeck keeps every shortcut it can still run, removes only the parts it cannot, and lists each removal until you choose **Keep the Rest**. Nothing is substituted, and the list reappears on every launch until you accept it.
+- **A shortcut lost one of its apps after an update:** That app's saved model or effort was retired. ReasonDeck keeps every shortcut it can still run and removes only the parts it cannot, so the rest of the shortcut is untouched and nothing is substituted. Re-enable the app in Settings to pick a current model.
 - **Saved shortcuts are invalid:** The saved data is not a readable configuration, or it was written by a newer ReasonDeck. Open Settings and choose **Reset to Empty**; switching stays disabled until you do.
 
 ## Build from source

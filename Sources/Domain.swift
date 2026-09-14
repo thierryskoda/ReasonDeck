@@ -340,65 +340,6 @@ enum TargetSelection: Codable, Hashable, Sendable {
     var id: String { "\(target.rawValue)|\(displayName)" }
 }
 
-/// What one read of a saved configuration could not keep.
-///
-/// Rendered here rather than in the view so the exact wording is testable, and so the
-/// only place that decides what counts as a loss is the place that observes it.
-struct ConfigurationLosses: Equatable, Sendable {
-    /// Shortcuts removed whole, because nothing in them was still usable.
-    var removedShortcuts: [String] = []
-    /// App assignments removed from shortcuts that were otherwise kept.
-    var removedAssignments: [String] = []
-
-    var isEmpty: Bool { removedShortcuts.isEmpty && removedAssignments.isEmpty }
-}
-
-/// Collects losses while a saved configuration is being read.
-///
-/// A `Decodable` initializer can only succeed or throw, so this travels in
-/// `JSONDecoder.userInfo`. Without it, retiring a model or a whole feature would either
-/// destroy the user's unrelated shortcuts or remove part of one without telling them.
-/// `@unchecked` because the compiler cannot see that the lock below is what protects the
-/// state. `JSONDecoder.userInfo` requires `Sendable`, and decoding being single threaded
-/// today is not something this type should assume on the caller's behalf.
-final class ConfigurationLossLog: @unchecked Sendable {
-    static let userInfoKey = CodingUserInfoKey(rawValue: "com.thierryai.ReasonDeck.configurationLosses")!
-
-    private let lock = NSLock()
-    private var recorded = ConfigurationLosses()
-
-    var losses: ConfigurationLosses { lock.withLock { recorded } }
-
-    func recordRemovedShortcut(label: String?) {
-        lock.withLock {
-            recorded.removedShortcuts.append(
-                "\(Self.subject(label)) was removed because nothing in it is still supported."
-            )
-        }
-    }
-
-    func recordRemovedAssignment(_ target: ApplicationTarget, shortcutLabel: String?) {
-        lock.withLock {
-            recorded.removedAssignments.append(
-                "\(target.displayName) was removed from \(Self.subject(shortcutLabel).lowercasedFirstWhenDescriptive) "
-                    + "because that model or effort is no longer supported."
-            )
-        }
-    }
-
-    private static func subject(_ label: String?) -> String {
-        label ?? "A shortcut with no key combination"
-    }
-}
-
-private extension String {
-    /// "⇧⌘1" stays as it is; "A shortcut with no key combination" reads better mid-sentence.
-    var lowercasedFirstWhenDescriptive: String {
-        guard let first = first, first.isLetter else { return self }
-        return first.lowercased() + dropFirst()
-    }
-}
-
 /// Decodes one element of an array without letting its failure end the array.
 struct RecoverableElement<Value: Decodable>: Decodable {
     let value: Value?
@@ -459,40 +400,18 @@ struct ShortcutEntry: Codable, Hashable, Sendable, Identifiable {
     /// A model or effort this build has retired removes only that app from this shortcut. It
     /// does not invalidate the shortcut's other apps, and it does not invalidate neighbouring
     /// shortcuts. Keys this build no longer knows are ignored outright, which is why retiring
-    /// a feature needs no migration code. Dropping is never substitution: an unreadable
-    /// assignment is removed and reported, never replaced with a different model or effort.
+    /// a feature needs no migration code. Nothing is ever substituted: an unreadable
+    /// assignment is dropped, never replaced with a different model or effort.
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
         // A shortcut that no longer satisfies the modifier rules leaves the entry unassigned
         // rather than discarding its selections; the empty key field is visible in Settings.
         shortcut = (try? container.decodeIfPresent(KeyboardShortcut.self, forKey: .shortcut)) ?? nil
-
-        let log = decoder.userInfo[ConfigurationLossLog.userInfoKey] as? ConfigurationLossLog
-        let label = shortcut?.displayName
-
-        chatGPT = Self.assignment(ChatGPTSelection.self, .chatGPT, .chatGPT, container, label, log)
-        claudeCode = Self.assignment(ClaudeCodeSelection.self, .claudeCode, .claudeCode, container, label, log)
-        cursor = Self.assignment(CursorSelection.self, .cursor, .cursor, container, label, log)
-        antigravity = Self.assignment(AntigravitySelection.self, .antigravity, .antigravity, container, label, log)
-    }
-
-    /// Absent means the user never enabled that app; present but unreadable means this build
-    /// retired the stored model or effort, which is a loss the user has to be told about.
-    private static func assignment<Selection: Decodable>(
-        _ type: Selection.Type,
-        _ key: CodingKeys,
-        _ target: ApplicationTarget,
-        _ container: KeyedDecodingContainer<CodingKeys>,
-        _ shortcutLabel: String?,
-        _ log: ConfigurationLossLog?
-    ) -> Selection? {
-        guard container.contains(key) else { return nil }
-        guard let decoded = try? container.decodeIfPresent(type, forKey: key) else {
-            log?.recordRemovedAssignment(target, shortcutLabel: shortcutLabel)
-            return nil
-        }
-        return decoded
+        chatGPT = (try? container.decodeIfPresent(ChatGPTSelection.self, forKey: .chatGPT)) ?? nil
+        claudeCode = (try? container.decodeIfPresent(ClaudeCodeSelection.self, forKey: .claudeCode)) ?? nil
+        cursor = (try? container.decodeIfPresent(CursorSelection.self, forKey: .cursor)) ?? nil
+        antigravity = (try? container.decodeIfPresent(AntigravitySelection.self, forKey: .antigravity)) ?? nil
     }
 }
 
@@ -554,42 +473,23 @@ struct ShortcutConfiguration: Codable, Equatable, Sendable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let decoded = try container.decode([RecoverableElement<ShortcutEntry>].self, forKey: .entries)
-        let log = decoder.userInfo[ConfigurationLossLog.userInfoKey] as? ConfigurationLossLog
-
-        for element in decoded where element.value == nil {
-            log?.recordRemovedShortcut(label: nil)
-        }
-
-        self = Self.recovered(from: decoded.compactMap(\.value), log: log)
+        self = Self.recovered(from: decoded.compactMap(\.value))
     }
 
     /// Reduces entries read from storage to the ones this build can honor.
     ///
     /// An entry with no assignments left has nothing to run, and a duplicate of one already
-    /// kept cannot be told apart at dispatch. Both are removed and reported. Nothing is ever
-    /// rewritten into something else: the invariant is that ReasonDeck drops what it cannot
-    /// honor and says so, never that it guesses a replacement. See ADR-001.
-    static func recovered(
-        from entries: [ShortcutEntry],
-        log: ConfigurationLossLog?
-    ) -> ShortcutConfiguration {
+    /// kept cannot be told apart at dispatch. Both are dropped. Nothing is ever rewritten into
+    /// something else: ReasonDeck removes what it cannot honor rather than guessing at a
+    /// replacement, which is what keeps model and effort labels closed. See ADR-001.
+    static func recovered(from entries: [ShortcutEntry]) -> ShortcutConfiguration {
         var kept: [ShortcutEntry] = []
         var seenIdentifiers: Set<UUID> = []
         var seenShortcuts: Set<ShortcutIdentity> = []
 
-        for entry in entries {
-            let label = entry.shortcut?.displayName
-
-            guard !entry.enabledTargets.isEmpty else {
-                log?.recordRemovedShortcut(label: label)
-                continue
-            }
-            guard seenIdentifiers.insert(entry.id).inserted else {
-                log?.recordRemovedShortcut(label: label)
-                continue
-            }
+        for entry in entries where !entry.enabledTargets.isEmpty {
+            guard seenIdentifiers.insert(entry.id).inserted else { continue }
             if let identity = entry.shortcut?.identity, !seenShortcuts.insert(identity).inserted {
-                log?.recordRemovedShortcut(label: label)
                 continue
             }
             kept.append(entry)
