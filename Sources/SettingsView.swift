@@ -154,25 +154,34 @@ struct SettingsView: View {
     private var permissionDetails: some View {
         VStack(spacing: 0) {
             permissionRow(
-                title: "Accessibility",
+                title: PrivacyService.accessibility.displayName,
                 isGranted: readiness.snapshot.accessibilityGranted
             ) {
                 Button("Allow Accessibility…") { readiness.requestAccessibility() }
+            }
+
+            // Accessibility fails the same stale-entry way as Input Monitoring, so it needs
+            // the same repair guidance. Leaving it off this row is what sends users to
+            // re-toggle a switch that is already on.
+            if !readiness.snapshot.accessibilityGranted {
+                permissionRepairHint(.accessibility)
             }
 
             Divider()
                 .padding(.vertical, 12)
 
             permissionRow(
-                title: "Input Monitoring",
+                title: PrivacyService.inputMonitoring.displayName,
                 isGranted: readiness.snapshot.inputMonitoringGranted
             ) {
                 Button("Allow Input Monitoring…") { readiness.requestInputMonitoring() }
             }
 
             if !readiness.snapshot.inputMonitoringGranted {
+                // Unlike Accessibility, Input Monitoring applies only to a process started
+                // after the grant, so the relaunch remedy belongs to this row alone.
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text("Already turned on in System Settings? macOS applies Input Monitoring only to a fresh launch. If it still shows Required after reopening, remove ReasonDeck from the Input Monitoring list and allow it again.")
+                    Text("macOS applies Input Monitoring only to a fresh launch, so allow it and then reopen ReasonDeck.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -182,6 +191,8 @@ struct SettingsView: View {
                 }
                 .padding(.top, 8)
                 .accessibilityIdentifier("input-monitoring-relaunch-hint")
+
+                permissionRepairHint(.inputMonitoring)
             }
 
             Divider()
@@ -192,6 +203,15 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func permissionRepairHint(_ service: PrivacyService) -> some View {
+        Text(readiness.repairGuidance(for: service))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 8)
+            .accessibilityIdentifier("permission-repair-\(service.rawValue)")
     }
 
     @ViewBuilder
