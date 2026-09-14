@@ -60,6 +60,64 @@ enum BuildSigningIdentity: Equatable, Sendable {
     }
 }
 
+/// A privacy grant ReasonDeck needs, named exactly as System Settings lists it.
+enum PrivacyService: String, CaseIterable, Sendable {
+    case accessibility
+    case inputMonitoring
+
+    var displayName: String {
+        switch self {
+        case .accessibility: "Accessibility"
+        case .inputMonitoring: "Input Monitoring"
+        }
+    }
+
+    /// Where the designated requirement in force at the last observed grant is kept.
+    var lastGrantRequirementKey: String {
+        "com.thierryai.ReasonDeck.lastGrantRequirement.\(rawValue).v1"
+    }
+}
+
+/// The code requirement macOS matches a stored privacy grant against.
+///
+/// TCC files each grant beside the app's designated requirement, never its name or path.
+/// A Developer ID requirement names the identifier and team, so it keeps matching across
+/// releases; an ad-hoc requirement is only a cdhash, so every rebuild stops matching while
+/// System Settings still shows the earlier row switched on. See ADR-001 point 10.
+enum BuildRequirement {
+    static func designated(_ bundleURL: URL) -> String? {
+        var staticCode: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(bundleURL as CFURL, [], &staticCode) == errSecSuccess,
+              let staticCode else { return nil }
+        var requirement: SecRequirement?
+        guard SecCodeCopyDesignatedRequirement(staticCode, [], &requirement) == errSecSuccess,
+              let requirement else { return nil }
+        var text: CFString?
+        guard SecRequirementCopyString(requirement, [], &text) == errSecSuccess else { return nil }
+        return text as String?
+    }
+}
+
+enum PrivacyGrantContinuity {
+    /// Whether a refused grant is explained by this build being signed differently from the
+    /// build the user actually allowed, rather than by never having allowed it.
+    ///
+    /// Requires evidence on both sides: a requirement remembered from an earlier grant and a
+    /// readable current one. Without both, ordinary setup guidance is the correct advice, and
+    /// claiming a stale entry would send the user to delete a System Settings row that is fine.
+    static func looksStale(
+        isGranted: Bool,
+        currentRequirement: String?,
+        requirementAtLastGrant: String?
+    ) -> Bool {
+        guard !isGranted,
+              let currentRequirement,
+              let requirementAtLastGrant
+        else { return false }
+        return currentRequirement != requirementAtLastGrant
+    }
+}
+
 enum PermissionState: Equatable, Sendable {
     case ready, accessibilityRequired, inputMonitoringRequired
 
@@ -95,20 +153,81 @@ final class PermissionReadiness {
         accessibilityGranted: false,
         inputMonitoringGranted: false
     )
+    /// Grants macOS is refusing because this build is signed differently from the one the
+    /// user allowed, rather than because they never allowed it.
+    private(set) var staleGrants: Set<PrivacyService> = []
+
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let currentRequirement: String?
 
     init(
         bundleURL: URL = Bundle.main.bundleURL,
-        signingIdentity: BuildSigningIdentity? = nil
+        signingIdentity: BuildSigningIdentity? = nil,
+        defaults: UserDefaults = .standard,
+        currentRequirement: String? = nil
     ) {
         self.bundleURL = bundleURL
         self.signingIdentity = signingIdentity ?? BuildSigningIdentity.classify(bundleURL)
+        self.defaults = defaults
+        self.currentRequirement = currentRequirement ?? BuildRequirement.designated(bundleURL)
         installLocation = AppInstallLocation.classify(bundleURL)
     }
 
     var state: PermissionState { snapshot.state }
 
+    func isGranted(_ service: PrivacyService) -> Bool {
+        switch service {
+        case .accessibility: snapshot.accessibilityGranted
+        case .inputMonitoring: snapshot.inputMonitoringGranted
+        }
+    }
+
+    /// What to tell the user about a grant macOS is currently refusing.
+    ///
+    /// Definite when the signature is known to have changed since the grant was made,
+    /// conditional when that cannot be proven. Both end in the same remedy, because
+    /// re-toggling a stale row does not repair it: only removing the row does.
+    func repairGuidance(for service: PrivacyService) -> String {
+        let remedy = "Remove ReasonDeck from the \(service.displayName) list with \u{2212}, then allow it again."
+        guard staleGrants.contains(service) else {
+            return "Already allowed in System Settings but still shown as Required? macOS is matching an earlier copy of ReasonDeck. \(remedy)"
+        }
+        return "ReasonDeck's signature changed since \(service.displayName) was allowed, so macOS is still matching the earlier copy: its switch can look on while this copy stays denied. \(remedy)"
+    }
+
     func refresh(eventTapAvailable: Bool) {
-        snapshot = PermissionController.snapshot(eventTapAvailable: eventTapAvailable)
+        apply(PermissionController.snapshot(eventTapAvailable: eventTapAvailable))
+    }
+
+    func apply(_ snapshot: PermissionSnapshot) {
+        self.snapshot = snapshot
+        updateGrantContinuity()
+    }
+
+    /// Remember the requirement each grant was made against, and flag the ones whose
+    /// remembered requirement no longer matches this build.
+    private func updateGrantContinuity() {
+        var stale: Set<PrivacyService> = []
+        for service in PrivacyService.allCases {
+            let key = service.lastGrantRequirementKey
+            let requirementAtLastGrant = defaults.string(forKey: key)
+
+            guard !isGranted(service) else {
+                if let currentRequirement, currentRequirement != requirementAtLastGrant {
+                    defaults.set(currentRequirement, forKey: key)
+                }
+                continue
+            }
+
+            if PrivacyGrantContinuity.looksStale(
+                isGranted: false,
+                currentRequirement: currentRequirement,
+                requirementAtLastGrant: requirementAtLastGrant
+            ) {
+                stale.insert(service)
+            }
+        }
+        staleGrants = stale
     }
 
     func requestAccessibility() {
