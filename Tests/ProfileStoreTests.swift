@@ -243,9 +243,11 @@ private func isolatedDefaults() -> UserDefaults {
 }
 
 @MainActor
-@Test func obsoleteConfigurationFailsClosedUntilReset() {
+@Test func anUnreadableSupersededPayloadStillFailsClosed() {
+    // Recovery applies to a configuration this build partly understands. Data that is not a
+    // configuration at all is still refused rather than guessed at.
     let defaults = unconfiguredDefaults()
-    defaults.set(Data("obsolete".utf8), forKey: ProfileStore.obsoleteStorageKey)
+    defaults.set(Data("obsolete".utf8), forKey: ProfileStore.supersededStorageKey)
 
     let store = ProfileStore(defaults: defaults)
 
@@ -254,6 +256,157 @@ private func isolatedDefaults() -> UserDefaults {
 
     store.reset()
     #expect(store.isValid)
-    #expect(defaults.object(forKey: ProfileStore.obsoleteStorageKey) == nil)
+    #expect(defaults.object(forKey: ProfileStore.supersededStorageKey) == nil)
     #expect(ProfileStore(defaults: defaults).entries.isEmpty)
+}
+
+/// A version 2 payload as shipped before Cursor session navigation was retired: two ordinary
+/// model shortcuts either side of a navigation-only entry this build no longer knows.
+private let supersededPayloadWithRetiredFeature = """
+{"configuration":{"entries":[
+ {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+  "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
+  "chatGPT":{"model":"5.6 Terra","effort":"Medium"},
+  "claudeCode":{"model":"Sonnet 5","effort":"High"}},
+ {"id":"1A8B6EB6-F7CC-4452-BA30-242365F7560D","cursorNavigation":"nextUnreadSession"},
+ {"id":"72413D4A-2083-4902-A6BB-E109C02E9D66",
+  "shortcut":{"keyCode":19,"keyLabel":"2","modifiers":9},
+  "chatGPT":{"model":"5.6 Sol","effort":"High"},
+  "claudeCode":{"model":"Opus 5","effort":"High"}}
+]},"version":2}
+"""
+
+@MainActor
+@Test func aRetiredFeatureNoLongerDestroysTheShortcutsBesideIt() throws {
+    // Regression: retiring Cursor session navigation invalidated the whole saved file, so
+    // upgrading wiped every unrelated model shortcut with no way to get them back.
+    let defaults = unconfiguredDefaults()
+    defaults.set(Data(supersededPayloadWithRetiredFeature.utf8), forKey: ProfileStore.supersededStorageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.isValid)
+    #expect(store.entries.count == 2)
+    #expect(store.entries.map { $0.shortcut?.displayName } == ["\u{21e7}\u{2318}1", "\u{21e7}\u{2318}2"])
+    #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
+    #expect(store.entries[1].chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
+
+    // The navigation-only entry had nothing left to run, so it is reported as removed.
+    #expect(store.losses.removedShortcuts.count == 1)
+    #expect(store.losses.removedAssignments.isEmpty)
+}
+
+@MainActor
+@Test func aRecoveredReadIsNotWrittenBackUntilItIsAccepted() throws {
+    // The report has to survive a relaunch, so a first launch cannot quietly rewrite the
+    // user's shortcuts before they have seen what changed.
+    let defaults = unconfiguredDefaults()
+    defaults.set(Data(supersededPayloadWithRetiredFeature.utf8), forKey: ProfileStore.supersededStorageKey)
+
+    _ = ProfileStore(defaults: defaults)
+    #expect(defaults.object(forKey: ProfileStore.supersededStorageKey) != nil)
+    #expect(defaults.object(forKey: ProfileStore.storageKey) == nil)
+
+    let relaunched = ProfileStore(defaults: defaults)
+    #expect(!relaunched.losses.isEmpty)
+
+    relaunched.acceptRecoveredConfiguration()
+    #expect(relaunched.losses.isEmpty)
+    #expect(defaults.object(forKey: ProfileStore.supersededStorageKey) == nil)
+
+    let afterAccepting = ProfileStore(defaults: defaults)
+    #expect(afterAccepting.entries.count == 2)
+    #expect(afterAccepting.losses.isEmpty)
+}
+
+@MainActor
+@Test func anUnchangedConfigurationReportsNothingAndKeepsEveryShortcut() {
+    // The ordinary upgrade: nothing the user saved was retired, so nothing is reported.
+    let defaults = isolatedDefaults()
+    let store = ProfileStore(defaults: defaults)
+    let id = try! #require(store.addEntry())
+    store.setClaudeCodeModel(.opus5, for: id)
+
+    let reopened = ProfileStore(defaults: defaults)
+    #expect(reopened.losses.isEmpty)
+    #expect(reopened.entries.count == store.entries.count)
+}
+
+@MainActor
+@Test func aRetiredModelRemovesOnlyThatAppFromTheShortcut() throws {
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"configuration":{"entries":[
+     {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+      "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
+      "chatGPT":{"model":"A Model ReasonDeck Retired","effort":"High"},
+      "claudeCode":{"model":"Sonnet 5","effort":"High"}}
+    ]},"version":3}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.entries.count == 1)
+    #expect(store.entries[0].chatGPT == nil)
+    #expect(store.entries[0].claudeCode == ClaudeCodeSelection(model: .sonnet5, effort: .high))
+    #expect(store.losses.removedAssignments == [
+        "ChatGPT was removed from \u{21e7}\u{2318}1 because that model or effort is no longer supported."
+    ])
+    #expect(store.losses.removedShortcuts.isEmpty)
+}
+
+@MainActor
+@Test func aShortcutWhoseEveryAppWasRetiredIsRemovedWhole() throws {
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"configuration":{"entries":[
+     {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+      "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
+      "chatGPT":{"model":"Retired","effort":"High"}},
+     {"id":"72413D4A-2083-4902-A6BB-E109C02E9D66",
+      "shortcut":{"keyCode":19,"keyLabel":"2","modifiers":9},
+      "claudeCode":{"model":"Sonnet 5","effort":"High"}}
+    ]},"version":3}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.entries.count == 1)
+    #expect(store.entries[0].shortcut?.displayName == "\u{21e7}\u{2318}2")
+    #expect(store.losses.removedAssignments == [
+        "ChatGPT was removed from \u{21e7}\u{2318}1 because that model or effort is no longer supported."
+    ])
+    #expect(store.losses.removedShortcuts == [
+        "\u{21e7}\u{2318}1 was removed because nothing in it is still supported."
+    ])
+}
+
+@MainActor
+@Test func aConfigurationFromANewerBuildIsRefusedRatherThanMisread() {
+    // Leniency runs one way only. A newer format may mean something this build would get
+    // wrong, and switching the wrong model is worse than asking for a reset.
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"configuration":{"entries":[]},"version":99}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.storageKey)
+
+    let store = ProfileStore(defaults: defaults)
+    #expect(!store.isValid)
+}
+
+@MainActor
+@Test func aRemovalWithNoKeyCombinationStillReadsAsASentence() {
+    // The retired entry in a version 2 file has no key combination, so the report has to name
+    // it in a way that reads correctly rather than printing an empty label.
+    let defaults = unconfiguredDefaults()
+    defaults.set(Data(supersededPayloadWithRetiredFeature.utf8), forKey: ProfileStore.supersededStorageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.losses.removedShortcuts == [
+        "A shortcut with no key combination was removed because nothing in it is still supported."
+    ])
 }

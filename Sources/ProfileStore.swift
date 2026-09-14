@@ -15,11 +15,15 @@ private struct StoredShortcutConfiguration: Codable {
     init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         version = try container.decode(Int.self, forKey: .version)
-        guard version == Self.currentVersion else {
+        // Older formats are readable: every field this build still understands decodes, and
+        // the rest is reported as a loss. Only a format written by a newer build is refused,
+        // because its meaning is genuinely unknown and guessing at it could switch the wrong
+        // model. Refusing an older one instead would discard shortcuts that are still valid.
+        guard version <= Self.currentVersion else {
             throw DecodingError.dataCorruptedError(
                 forKey: .version,
                 in: container,
-                debugDescription: "Unsupported shortcut configuration version."
+                debugDescription: "Shortcut configuration was written by a newer ReasonDeck."
             )
         }
         configuration = try container.decode(ShortcutConfiguration.self, forKey: .configuration)
@@ -59,13 +63,20 @@ struct LegacyShortcutConfiguration: Codable, Sendable {
 @MainActor
 @Observable
 final class ProfileStore {
+    /// The `v3` suffix is historical and does not change again. The stored payload carries
+    /// its own version and the reader accepts every version it understands, so a schema
+    /// change no longer needs a new key, a new decoder, or a migration.
     static let storageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v3"
-    static let obsoleteStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
+    /// Same payload shape as the current key, written before that rule existed.
+    static let supersededStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v2"
+    /// A genuinely different shape: ChatGPT-only entries with no version marker.
     static let legacyStorageKey = "com.thierryai.ReasonDeck.shortcutConfiguration.v1"
     static let didOpenInitialSettingsKey = "com.thierryai.ReasonDeck.didOpenInitialSettings.v1"
 
     private(set) var configuration: ShortcutConfiguration?
     private(set) var invalidReason: String?
+    /// What the last read could not keep. Cleared once the user accepts it or saves over it.
+    private(set) var losses = ConfigurationLosses()
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored var onChange: (@MainActor () -> Void)?
 
@@ -76,12 +87,12 @@ final class ProfileStore {
         self.defaults = defaults
 
         if defaults.object(forKey: Self.storageKey) != nil {
-            loadCurrentConfiguration()
+            loadStoredConfiguration(forKey: Self.storageKey)
             return
         }
 
-        if defaults.object(forKey: Self.obsoleteStorageKey) != nil {
-            invalidateSavedConfiguration()
+        if defaults.object(forKey: Self.supersededStorageKey) != nil {
+            loadStoredConfiguration(forKey: Self.supersededStorageKey)
             return
         }
 
@@ -310,19 +321,36 @@ final class ProfileStore {
         save(updated)
     }
 
-    private func loadCurrentConfiguration() {
-        guard let data = defaults.data(forKey: Self.storageKey) else {
+    /// Reads a stored configuration, keeping whatever this build can still honor.
+    ///
+    /// What survived is deliberately not written back here. Leaving the stored data alone
+    /// means the loss is reported again on every launch until the user accepts it, instead
+    /// of a first launch quietly rewriting their shortcuts while they are not looking.
+    private func loadStoredConfiguration(forKey key: String) {
+        guard let data = defaults.data(forKey: key) else {
             invalidateSavedConfiguration()
             return
         }
+
+        let log = ConfigurationLossLog()
+        let decoder = JSONDecoder()
+        decoder.userInfo[ConfigurationLossLog.userInfoKey] = log
+
         do {
-            configuration = try JSONDecoder().decode(
-                StoredShortcutConfiguration.self,
-                from: data
-            ).configuration
+            configuration = try decoder.decode(StoredShortcutConfiguration.self, from: data).configuration
+            losses = log.losses
         } catch {
             invalidateSavedConfiguration()
         }
+    }
+
+    /// Commit what survived a read, which also clears the superseded keys.
+    ///
+    /// Explicit because the user is agreeing to the loss. Nothing about a recovered read is
+    /// applied to storage until they do.
+    func acceptRecoveredConfiguration() {
+        guard let configuration else { return }
+        save(configuration)
     }
 
     private func migrateLegacyConfiguration() {
@@ -335,7 +363,7 @@ final class ProfileStore {
             let migrated = try legacy.migrated()
             let encoded = try JSONEncoder().encode(StoredShortcutConfiguration(configuration: migrated))
             defaults.set(encoded, forKey: Self.storageKey)
-            defaults.removeObject(forKey: Self.obsoleteStorageKey)
+            defaults.removeObject(forKey: Self.supersededStorageKey)
             defaults.removeObject(forKey: Self.legacyStorageKey)
             configuration = migrated
         } catch {
@@ -349,10 +377,11 @@ final class ProfileStore {
                 try JSONEncoder().encode(StoredShortcutConfiguration(configuration: configuration)),
                 forKey: Self.storageKey
             )
-            defaults.removeObject(forKey: Self.obsoleteStorageKey)
+            defaults.removeObject(forKey: Self.supersededStorageKey)
             defaults.removeObject(forKey: Self.legacyStorageKey)
             self.configuration = configuration
             invalidReason = nil
+            losses = ConfigurationLosses()
             onChange?()
         } catch {
             invalidate("Profiles could not be saved. Reset to continue.")
