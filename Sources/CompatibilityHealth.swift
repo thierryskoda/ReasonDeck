@@ -88,7 +88,7 @@ enum CompatibilityPolicy {
     /// Only exact app versions with recorded signed live evidence are certified.
     /// Nearby patch versions remain unknown until their picker contract is exercised.
     private static let verifiedVersions: [ApplicationTarget: Set<String>] = [
-        .chatGPT: ["26.803.61601"],
+        .chatGPT: ["26.803.61601", "26.901.31953", "26.908.70816"],
         .claudeCode: ["1.40609.0", "1.46388.4"],
         .cursor: ["3.15.6", "3.16.29"],
         .antigravity: ["2.8.1"],

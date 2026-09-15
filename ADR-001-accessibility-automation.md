@@ -3,6 +3,18 @@
 - Status: Accepted
 - Scope: ChatGPT model-and-effort selection in the macOS helper
 
+## September 2026 composer and Power picker
+
+ChatGPT 26.901.31953 exposes the task composer as an AXTextArea and AXPopUpButton with the same immediate parent, approximately 28 levels below the focused window. Its Control-Shift-M command can open an inline model list rather than the older native Model/Effort picker. GPT-6 Astra is a closed model value; an unrecognized current model must never be silently replaced.
+
+Prefer the modern adapter when exactly one such composer is proven. Bound traversal to 40 levels and 3,500 nodes, retain the parent edges from that traversal rather than unstable AXParent references, and prune input descendants without reading their values. Only classify exact control labels and static text within verified picker structures; do not aggregate transcript text into ancestor labels.
+
+The current layout has three states: a compact portal of exact model menu items while the composer popup is expanded, a group of exact model buttons immediately adjacent to the composer, and the Power popover. Model rows require a unique structural group containing at least two distinct known models. Duplicate rows or groups are failures. The Power popover requires one Power menu item, its owned Select model action, an exact model/effort status with valid announced bounds, and the documented Left/Right keyboard instructions. Reacquire these controls after every action.
+
+The installed app source maps the Power presentation labels Standard to Medium and Extended to High; other efforts retain their exact labels. Parse the complete status, including its bounded position and total. Focus the exact Power item and wait for Accessibility to report that same focused element before delivering one documented Left/Right adjustment. Verify the same model, the same total, an adjacent announced position, and the newly observed effort after every step. Stop on missing focus, unknown labels, no progress, overshoot, or context change. This is semantic adjustment of a named control, not arrow-count model-menu navigation. Never infer an effort from an absolute slider index.
+
+Preserve model-before-effort, final observed selection, partial-failure reporting, and captured-window revalidation. Cleanup may send at most three Escapes, proving a modern picker remains open before each, then restore only the original captured input focus. The older native picker contract below remains the fallback for layouts that do not expose the modern composer; the modern path does not fall back midway through a transaction.
+
 ## Context
 
 ReasonDeck needs to change the active conversation's model and reasoning effort without modifying ChatGPT, depending on an undocumented private API, or retaining chat data. In the tested Chromium-based ChatGPT/Codex Mac app, the composer profile chip is not consistently exposed to Accessibility. Its native Select model command (`Control-Shift-M`) opens a picker whose top-level Model and Effort rows and nested exact choices are actionable Accessibility menu items. The UI also closes and rebuilds the menu after a model selection.
@@ -56,11 +68,15 @@ Rejected. The product surface in scope is the native Mac app, and introducing a 
 
 - A full switch can visibly open the native model picker twice.
 - The implementation is coupled to the English labels and native-picker Accessibility structure of tested ChatGPT versions.
-- The normal conversation composer is the supported layout. Open-in preview/sidebar behavior remains unverified.
+- Modern task composers with the direct sibling input/popup contract are supported alongside the older native conversation picker. Open-in preview/sidebar behavior remains unverified.
 - ChatGPT UI changes require renewed Accessibility-tree and live behavior verification; a label or structure mismatch disables the unsafe path instead of guessing.
 - The helper stays local-only and does not need chat content, account credentials, or network access.
 - Configuration can express a supported model-and-effort pair that the current ChatGPT UI does not offer; runtime selection then reports the existing typed or partial failure without guessing.
 
+## Live verification of the modern path
+
+On macOS 26.5.1 with ChatGPT 26.901.31953, the installed Developer ID signed ReasonDeck 0.2.6 build 10 passed the saved Command-Shift-1 (Sol/Light) and Command-Shift-2 (Sol/High) shortcuts through its event tap. Verified cases included model plus effort changes, effort-only changes, an already-applied request, and starts with the inline list, Power popover, and compact list already open. The same adapter also passed Astra/High to Sol/High and back, and Sol High to Extra High and back. A foreground-app change aborted a live attempt. Intel is included in the universal build but was not tested on Intel hardware; the older native layout remains unit-tested rather than reverified on this app version.
+
 ## Supersession condition
 
-Revisit this decision if ChatGPT provides a supported model-selection API or consistently exposes the composer picker and all menu choices as actionable Accessibility elements. Preserve frontmost scoping, final-state verification, and fail-closed behavior in any replacement.
+Revisit this decision if ChatGPT provides a supported model-selection API. The September 2026 amendment uses the newly exposed actionable composer and named Power control. Preserve frontmost scoping, final-state verification, and fail-closed behavior in any replacement.

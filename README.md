@@ -14,7 +14,7 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.4.3)
 
-Version 0.2.6 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity, plus per-app compatibility health in Settings.
+Version 0.4.3 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity, plus per-app compatibility health in Settings. Its ChatGPT adapter supports only the older native picker; the current task-composer fix is awaiting the next release.
 
 ### Install
 
@@ -48,7 +48,11 @@ Claude Desktop 1.40609.0 passed signed live switching on a paid account in Chat,
 
 The v0.2.6 signed candidate passed live exact-state switching on macOS 26.5.1 with ChatGPT 26.803.61601 and Antigravity 2.8.1. Antigravity was tested in both directions between Claude Opus 4.6 (Thinking) and the exact Fast-badged Gemini 3.7 Flash Medium row, including reopened-picker read-back and restoration. These checks ran on Apple silicon; the universal Intel slice is build-verified but not runtime-certified on Intel hardware.
 
-ChatGPT models currently recognized by source: 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
+The v0.2.7 ChatGPT adapter passed signed live switching on macOS 26.5.1 with ChatGPT 26.901.31953. Tests covered model-and-effort changes, effort-only changes, already-applied requests, compact and inline model lists, the Power popover, an initially open picker, GPT-6 Astra transitions, and aborting when the foreground app changed. These checks ran on Apple silicon; the universal Intel slice is build-verified but not runtime-certified on Intel hardware.
+
+The v0.4.4 candidate passed signed live switching on macOS 26.5.1 with ChatGPT 26.908.70816, including already-applied, Light, and High outcomes through the current task composer. These checks ran on Apple silicon; the published notarized artifact still requires fresh-download verification before this release claim is complete.
+
+ChatGPT models currently recognized by source: 6 Astra, 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark.
 
 ChatGPT efforts currently recognized by source, shown from lowest to highest in Settings: None, Light, Medium, High, Extra High, Max, and Ultra.
 
@@ -65,7 +69,7 @@ Antigravity efforts currently recognized by source: High, Medium, Low, None, (Th
 - The English Antigravity Mac app (`com.google.antigravity`)
 - Accessibility and Input Monitoring permission
 
-ChatGPT support expects a normal conversation with the composer visible and the native **Select model** command (`⌃⇧M`) available. Preview, sidebar, and task layouts are not supported targets.
+ChatGPT support requires one visible composer with an unambiguous model control. Current task composers support the compact model list, the expanded inline model list, and the model-and-effort Power popover, including when a picker is already open. ReasonDeck reads the exact model and effort, selects a named model row, and adjusts the named Power control only after verifying focus and each announced change. Power labels **Standard** and **Extended** correspond to **Medium** and **High**. Older native pickers with separate Model/Effort rows still use **Select model** (`⌃⇧M`). Ambiguous multi-composer, preview, and sidebar-only surfaces remain unsupported.
 
 Cursor support expects an idle Agent or Chat composer with its model chip visible. The 0.2.0 baseline covers Cursor 3.15.6 and 3.16.29 on macOS 26.5.1. Cursor's server-driven model list can change, so ReasonDeck accepts only exact labels it knows and fails closed on anything else.
 
@@ -90,6 +94,7 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 ## Troubleshooting
 
 - **Permissions are required:** Use the matching **Allow** action in ReasonDeck Settings, enable the installed app in System Settings, then return to ReasonDeck.
+- **ChatGPT reports that the picker was not found:** Leave one composer visible in the active window. Older ReasonDeck builds do not recognize GPT-6 Astra or the current task-composer Power and inline-picker layouts.
 - **Hotkeys do not respond:** Confirm ReasonDeck appears and is enabled in **System Settings > Privacy & Security > Input Monitoring**. Use **Allow Input Monitoring…** in ReasonDeck if the list has no ReasonDeck entry, then choose **Quit & Reopen** when macOS asks.
 - **Permissions show Required although the System Settings toggle is on:** The toggle belongs to an earlier copy. macOS files each grant against the app's code signature, not its name, so a differently signed build is a different app to it: the old row keeps showing on while the running copy is denied. Turning that row off and on again does not repair it. Remove ReasonDeck from the **Accessibility** and **Input Monitoring** lists with `−`, then allow it again. For Input Monitoring, which applies only to a fresh launch, use **Quit & Reopen** afterwards. Settings says this on each permission that is still Required, and states it outright when it can see that the signature changed since you allowed that permission. Signing every build with the same stable team keeps this from recurring.
 - **The menu bar icon is missing:** Launch ReasonDeck again from Applications to open Settings. When Settings says the icon is outside the usable status strip, free menu bar space or use an overflow manager, then relaunch ReasonDeck so macOS can place it again.

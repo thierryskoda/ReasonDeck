@@ -9,6 +9,11 @@ enum ChatGPTAXLabel: Hashable, Sendable {
     case effort(ChatGPTReasoningEffort)
     case modelRow
     case effortRow
+    case selectModel
+    case selectEffort
+    case power
+    case powerInstructions
+    case powerStatus(ChatGPTPowerStatus)
     case unknownText
 }
 
@@ -25,6 +30,7 @@ struct ChatGPTAXNode: Equatable, Sendable {
     let actions: Set<ChatGPTAXAction>
     let visible: Bool
     let frame: CGRect?
+    var expanded: Bool? = nil
 }
 
 struct ChatGPTAXSnapshot: Equatable, Sendable {
@@ -183,18 +189,6 @@ enum ChatGPTSurfacePlanner {
         return match
     }
 
-    private static func uniqueLabeledDirectActionable(_ nodes: [ChatGPTAXNode], snapshot: ChatGPTAXSnapshot) throws -> ChatGPTActionTarget {
-        var matches: [ChatGPTActionTarget] = []
-        for node in nodes {
-            guard let candidate = directActionableAncestor(of: node.id, in: snapshot),
-                  !matches.contains(candidate) else { continue }
-            matches.append(candidate)
-        }
-        guard !matches.isEmpty else { throw ChatGPTSurfaceFailure.itemMissing }
-        guard matches.count == 1, let match = matches.first else { throw ChatGPTSurfaceFailure.ambiguousItem }
-        return match
-    }
-
     /// A real ChatGPT picker row is a pressable menu item. Its closed label can
     /// live on a static-text child, but generic AXGroups that merely contain the
     /// whole popover must never become a row action.
@@ -284,5 +278,152 @@ enum ChatGPTSurfacePlanner {
             current = index[id]?.parentID; distance += 1
         }
         return nil
+    }
+}
+
+/// Power announces presentation aliases, not the canonical effort on the composer.
+/// Parse the complete closed label and announced bounds; never infer effort from a dot index.
+struct ChatGPTPowerStatus: Hashable, Sendable {
+    let selection: ChatGPTSelection
+    let position: Int
+    let total: Int
+
+    static func parse(_ text: String) -> Self? {
+        let parts = text.components(separatedBy: ", ")
+        guard parts.count == 2, parts[1].hasSuffix(".") else { return nil }
+        let bounds = parts[1].dropLast().components(separatedBy: " of ")
+        guard bounds.count == 2, let position = Int(bounds[0]), let total = Int(bounds[1]),
+              (1...8).contains(total), (1...total).contains(position)
+        else { return nil }
+        for model in ChatGPTModel.allCases {
+            for effort in ChatGPTReasoningEffort.allCases {
+                let alias = effort == .medium ? "Standard" : effort == .high ? "Extended" : effort.rawValue
+                if ["\(model.rawValue) \(alias)", "GPT-\(model.rawValue) \(alias)"].contains(parts[0]) {
+                    return Self(selection: .init(model: model, effort: effort), position: position, total: total)
+                }
+            }
+        }
+        return nil
+    }
+
+    func direction(toward effort: ChatGPTReasoningEffort) throws -> Bool {
+        let order: [ChatGPTReasoningEffort] = [.none, .light, .medium, .high, .extraHigh, .max, .ultra]
+        guard let current = order.firstIndex(of: selection.effort), let desired = order.firstIndex(of: effort),
+              current != desired else { throw ChatGPTSurfaceFailure.itemMissing }
+        let increase = desired > current
+        guard increase ? position < total : position > 1 else { throw ChatGPTSurfaceFailure.itemMissing }
+        return increase
+    }
+}
+
+enum ChatGPTControlLabels {
+    static func classify(_ text: String) -> Set<ChatGPTAXLabel> {
+        switch text {
+        case "Model": return [.modelRow]
+        case "Effort": return [.effortRow]
+        case "Select model": return [.selectModel]
+        case "Select effort": return [.selectEffort]
+        case "Power": return [.power]
+        case "Use Left and Right arrow keys to adjust power": return [.powerInstructions]
+        default: break
+        }
+        if let status = ChatGPTPowerStatus.parse(text) { return [.powerStatus(status)] }
+        if let effort = ChatGPTReasoningEffort(rawValue: text) { return [.effort(effort)] }
+        for model in ChatGPTModel.allCases {
+            for name in [model.rawValue, "GPT-\(model.rawValue)"] {
+                if text == name { return [.model(model)] }
+                for effort in ChatGPTReasoningEffort.allCases where text == "\(name) \(effort.rawValue)" {
+                    return [.model(model), .effort(effort)]
+                }
+            }
+        }
+        return text.isEmpty ? [] : [.unknownText]
+    }
+}
+
+struct ChatGPTModernComposer: Equatable, Sendable {
+    let rootID: Int
+    let inputID: Int
+    let controlID: Int
+    let selection: ChatGPTSelection?
+}
+
+struct ChatGPTPowerPicker: Equatable, Sendable {
+    let rootID: Int
+    let powerID: Int
+    let modelActionID: Int
+    let status: ChatGPTPowerStatus
+}
+
+enum ChatGPTModernPlanner {
+    /// The observed modern composer has a text area and popup as direct siblings.
+    /// Do not widen this to a common window ancestor: transcript buttons also name models.
+    static func composer(in snapshot: ChatGPTAXSnapshot) throws -> ChatGPTModernComposer {
+        var matches: [ChatGPTModernComposer] = []
+        for input in snapshot.nodes where input.visible && input.role == "AXTextArea" {
+            guard let parent = input.parentID else { continue }
+            for control in snapshot.nodes where control.visible && control.parentID == parent
+                && control.role == "AXPopUpButton" && control.actions.contains(.press) {
+                let models = control.labels.compactMap { if case .model(let m) = $0 { return m }; return nil }
+                let efforts = control.labels.compactMap { if case .effort(let e) = $0 { return e }; return nil }
+                let selection: ChatGPTSelection?
+                if models.count == 1, efforts.count == 1 {
+                    selection = .init(model: models[0], effort: efforts[0])
+                } else if control.labels == [.selectEffort] {
+                    selection = nil
+                } else { continue }
+                matches.append(.init(rootID: parent, inputID: input.id, controlID: control.id, selection: selection))
+            }
+        }
+        guard matches.count == 1 else {
+            throw matches.isEmpty ? ChatGPTSurfaceFailure.unsupportedSurface : .ambiguousComposer
+        }
+        return matches[0]
+    }
+
+    static func powerPicker(in snapshot: ChatGPTAXSnapshot) throws -> ChatGPTPowerPicker {
+        _ = try composer(in: snapshot)
+        let powers = snapshot.nodes.filter { $0.visible && $0.role == "AXMenuItem" && $0.labels == [.power] }
+        guard powers.count == 1, let power = powers.first, let parent = power.parentID else {
+            throw ChatGPTSurfaceFailure.itemMissing
+        }
+        // The portal owns Power, Select model, the status, and keyboard instructions.
+        // Requiring all four prevents a similarly named unrelated menu from authorizing keys.
+        let descendants = snapshot.nodes.filter { $0.visible && snapshot.isDescendant($0.id, of: parent) }
+        let modelRows = descendants.filter { $0.role == "AXMenuItem" && $0.labels == [.selectModel] && $0.actions.contains(.press) }
+        let statuses = descendants.flatMap { $0.labels.compactMap { if case .powerStatus(let s) = $0 { return s }; return nil } }
+        guard modelRows.count == 1, Set(statuses).count == 1, let status = statuses.first,
+              descendants.contains(where: { $0.labels.contains(.powerInstructions) }) else {
+            throw ChatGPTSurfaceFailure.itemMissing
+        }
+        return .init(rootID: parent, powerID: power.id, modelActionID: modelRows[0].id, status: status)
+    }
+
+    /// Compact model rows are siblings in one popup portal. Inline rows are siblings
+    /// in the group immediately adjacent to the verified composer, never transcript rows.
+    static func modelList(in snapshot: ChatGPTAXSnapshot, composer: ChatGPTModernComposer) throws -> [ChatGPTModel: Int] {
+        let popupOpen = snapshot.byID[composer.controlID]?.expanded == true
+        let candidates = snapshot.nodes.filter { node in
+            node.visible && node.actions.contains(.press)
+                && (node.role == "AXMenuItem" || node.role == "AXButton")
+                && node.labels.count == 1 && node.labels.contains(where: { if case .model = $0 { return true }; return false })
+        }
+        let groups = Dictionary(grouping: candidates, by: \.parentID)
+        var matches: [[ChatGPTModel: Int]] = []
+        for (parent, rows) in groups {
+            guard let parent, rows.count >= 2 else { continue }
+            let compact = popupOpen && rows.allSatisfy { $0.role == "AXMenuItem" }
+            let inline = rows.allSatisfy { $0.role == "AXButton" }
+                && snapshot.byID[parent]?.parentID == snapshot.byID[composer.rootID]?.parentID
+            guard compact || inline else { continue }
+            var items: [ChatGPTModel: Int] = [:]
+            for row in rows {
+                guard case .model(let model) = row.labels.first, items[model] == nil else { throw ChatGPTSurfaceFailure.ambiguousItem }
+                items[model] = row.id
+            }
+            matches.append(items)
+        }
+        guard matches.count == 1 else { throw matches.isEmpty ? ChatGPTSurfaceFailure.itemMissing : .ambiguousItem }
+        return matches[0]
     }
 }

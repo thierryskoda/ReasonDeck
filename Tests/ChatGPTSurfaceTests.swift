@@ -148,3 +148,80 @@ private func chatSnapshot(_ nodes: [ChatGPTAXNode]) -> ChatGPTAXSnapshot {
         try ChatGPTSurfacePlanner.nativePicker(in: snapshot)
     }
 }
+
+private func modernChatSnapshot(open: Bool = false, power: Bool = false) -> ChatGPTAXSnapshot {
+    var popup = chatNode(3, parent: 1, role: "AXPopUpButton",
+        labels: power ? [.selectEffort] : [.model(.astra6), .effort(.high)], actions: [.press])
+    popup.expanded = open
+    var nodes = [chatNode(0), chatNode(1, parent: 0), chatNode(2, parent: 1, role: "AXTextArea"), popup]
+    if power {
+        nodes += [chatNode(10, parent: 0), chatNode(11, parent: 10),
+            chatNode(12, parent: 10, role: "AXMenuItem", labels: [.power], actions: [.press]),
+            chatNode(13, parent: 11, role: "AXMenuItem", labels: [.selectModel], actions: [.press]),
+            chatNode(14, parent: 10, role: "AXStaticText", labels: [.powerStatus(.init(selection: .init(model: .astra6, effort: .high), position: 3, total: 6))]),
+            chatNode(15, parent: 10, role: "AXStaticText", labels: [.powerInstructions])]
+    }
+    return chatSnapshot(nodes)
+}
+
+@Test func chatGPTModernComposerDoesNotConfuseInlineModelRowsWithThePopup() throws {
+    let initial = modernChatSnapshot()
+    let snapshot = chatSnapshot(initial.nodes + [chatNode(5, parent: 0),
+        chatNode(6, parent: 5, role: "AXButton", labels: [.model(.astra6)], actions: [.press]),
+        chatNode(7, parent: 5, role: "AXButton", labels: [.model(.sol56)], actions: [.press])])
+    let composer = try ChatGPTModernPlanner.composer(in: snapshot)
+    #expect(composer.controlID == 3)
+    #expect(composer.selection == .init(model: .astra6, effort: .high))
+    #expect(try ChatGPTModernPlanner.modelList(in: snapshot, composer: composer)[.sol56] == 7)
+}
+
+@Test func chatGPTModernComposerRejectsAmbiguousAndUnrelatedControls() {
+    let original = modernChatSnapshot()
+    let duplicate = chatSnapshot(original.nodes + [chatNode(4, parent: 1, role: "AXPopUpButton",
+        labels: [.model(.sol56), .effort(.high)], actions: [.press])])
+    #expect(throws: ChatGPTSurfaceFailure.ambiguousComposer) { try ChatGPTModernPlanner.composer(in: duplicate) }
+    let unrelated = chatSnapshot([chatNode(0), chatNode(1, parent: 0), chatNode(2, parent: 1, role: "AXTextArea"),
+        chatNode(3, parent: 0, role: "AXPopUpButton", labels: [.model(.astra6), .effort(.high)], actions: [.press])])
+    #expect(throws: ChatGPTSurfaceFailure.unsupportedSurface) { try ChatGPTModernPlanner.composer(in: unrelated) }
+}
+
+@Test func chatGPTCompactListRequiresTheComposerPopupToBeOpen() throws {
+    let rows = [chatNode(5),
+        chatNode(6, parent: 5, role: "AXMenuItem", labels: [.model(.astra6)], actions: [.press]),
+        chatNode(7, parent: 5, role: "AXMenuItem", labels: [.model(.sol56)], actions: [.press])]
+    let closed = chatSnapshot(modernChatSnapshot().nodes + rows)
+    let composer = try ChatGPTModernPlanner.composer(in: closed)
+    #expect(throws: ChatGPTSurfaceFailure.itemMissing) { try ChatGPTModernPlanner.modelList(in: closed, composer: composer) }
+    let opened = chatSnapshot(modernChatSnapshot(open: true).nodes + rows)
+    #expect(try ChatGPTModernPlanner.modelList(in: opened, composer: composer)[.astra6] == 6)
+    let duplicate = chatSnapshot(opened.nodes + [chatNode(8, parent: 5, role: "AXMenuItem", labels: [.model(.sol56)], actions: [.press])])
+    #expect(throws: ChatGPTSurfaceFailure.ambiguousItem) { try ChatGPTModernPlanner.modelList(in: duplicate, composer: composer) }
+}
+
+@Test func chatGPTPowerRequiresStatusInstructionsAndOwnedModelAction() throws {
+    let snapshot = modernChatSnapshot(open: true, power: true)
+    let picker = try ChatGPTModernPlanner.powerPicker(in: snapshot)
+    #expect(picker.status.selection == .init(model: .astra6, effort: .high))
+    #expect(picker.modelActionID == 13)
+    for missing in [13, 14, 15] {
+        #expect(throws: ChatGPTSurfaceFailure.itemMissing) {
+            try ChatGPTModernPlanner.powerPicker(in: chatSnapshot(snapshot.nodes.filter { $0.id != missing }))
+        }
+    }
+}
+
+@Test func chatGPTPowerAliasesAndBoundsAreExact() throws {
+    let high = try #require(ChatGPTPowerStatus.parse("GPT-6 Astra Extended, 3 of 6."))
+    #expect(high.selection == .init(model: .astra6, effort: .high))
+    #expect(try high.direction(toward: .extraHigh))
+    #expect(try !high.direction(toward: .medium))
+    #expect(ChatGPTPowerStatus.parse("GPT-6 Astra Standard, 2 of 6.")?.selection.effort == .medium)
+    for text in ["GPT-6 Astra Extended, 0 of 6.", "GPT-6 Astra Extended, 7 of 6.",
+                 "GPT-6 Astra Extended, 3 of 60.", "GPT-6 Astra Preview Extended, 3 of 6.",
+                 "GPT-6 Astra Extended, 3 of 6. arbitrary suffix"] {
+        #expect(ChatGPTPowerStatus.parse(text) == nil)
+    }
+    #expect(ChatGPTControlLabels.classify("GPT-5.50 High") == [.unknownText])
+    #expect(ChatGPTControlLabels.classify("Discuss GPT-6 Astra High") == [.unknownText])
+    #expect(ChatGPTControlLabels.classify("GPT-6 Astra Extra High") == [.model(.astra6), .effort(.extraHigh)])
+}

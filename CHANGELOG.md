@@ -2,6 +2,23 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Added
+
+- Add GPT-6 Astra as an exact supported ChatGPT model.
+
+### Fixed
+
+- Restore the modern ChatGPT composer adapter that was omitted from the 0.4.0 through 0.4.3 release line.
+- Support ChatGPT's current task composer, including compact and inline model lists and the model-and-effort Power popover.
+- Keep the older native Model/Effort picker as a fallback for previously verified ChatGPT layouts.
+
+### Safety
+
+- Require one unambiguous composer and exact picker structure, labels, focus, announced Power bounds, and final model-and-effort state before reporting success.
+- Prune composer input descendants without reading their values, reacquire controls after every action, and fail closed on duplicate rows, context drift, missing progress, or unknown labels.
+
 ## 0.4.3 - 2026-09-14
 
 ### Fixed

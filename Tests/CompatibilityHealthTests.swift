@@ -12,13 +12,15 @@ private final class CompatibilityInventoryStub {
 
 @Test func exactSignedLiveVersionsAreCertifiedWithoutAcceptingNearbyVersions() {
     #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.803.61601") == .verified)
+    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.901.31953") == .verified)
+    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.908.70816") == .verified)
     #expect(CompatibilityPolicy.certification(for: .claudeCode, version: "1.40609.0") == .verified)
     #expect(CompatibilityPolicy.certification(for: .claudeCode, version: "1.46388.4") == .verified)
     #expect(CompatibilityPolicy.certification(for: .cursor, version: "3.15.6") == .verified)
     #expect(CompatibilityPolicy.certification(for: .cursor, version: "3.16.29") == .verified)
     #expect(CompatibilityPolicy.certification(for: .antigravity, version: "2.8.1") == .verified)
 
-    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.803.61602") == .unverified)
+    #expect(CompatibilityPolicy.certification(for: .chatGPT, version: "26.908.70817") == .unverified)
     #expect(CompatibilityPolicy.certification(for: .claudeCode, version: "1.46388.5") == .unverified)
     #expect(CompatibilityPolicy.certification(for: .cursor, version: "3.16.30") == .unverified)
     #expect(CompatibilityPolicy.certification(for: .antigravity, version: "2.8.2") == .unverified)

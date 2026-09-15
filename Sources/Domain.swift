@@ -1,6 +1,7 @@
 import Foundation
 
 enum ChatGPTModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
+    case astra6 = "6 Astra"
     case sol56 = "5.6 Sol"
     case terra56 = "5.6 Terra"
     case luna56 = "5.6 Luna"

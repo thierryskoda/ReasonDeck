@@ -19,9 +19,15 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     private let nativeModelPickerKey: CGKeyCode = 46 // M, Control-Shift-M in ChatGPT.
     private var accessibilityPreparationAttemptedPID: pid_t?
     private var composerFocusTarget: ComposerFocusTarget?
+    private var modernTransaction = false
 
     func apply(_ selection: ChatGPTSelection, invocation: HotkeyInvocation) async -> ChatGPTApplyOutcome {
         composerFocusTarget = await captureComposerFocus(invocation: invocation)
+        modernTransaction = false
+        if let context = try? await resolveContext(invocation: invocation) {
+            let snapshot = chatGPTSnapshot(window: context.window)
+            modernTransaction = (try? ChatGPTModernPlanner.composer(in: snapshot.snapshot)) != nil
+        }
         let outcome = await ChatGPTTransaction.apply(selection, invocation: invocation, using: self)
         composerFocusTarget = nil
         return outcome
@@ -29,7 +35,8 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
 
     func observeSelectionTitleLeavingPickerOpen(invocation: HotkeyInvocation) async throws -> String {
         let start = ContinuousClock().now
-        defer { logElapsed("observe-native-picker", since: start) }
+        defer { logElapsed("observe-picker", since: start) }
+        if modernTransaction { return try await modernSelection(invocation: invocation).expectedTitle }
         let context = try await openNativePicker(invocation: invocation)
         return "\(context.picker.model.rawValue) \(context.picker.effort.rawValue)"
     }
@@ -37,6 +44,7 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     func selectModel(_ model: ChatGPTModel, invocation: HotkeyInvocation) async throws -> String {
         let start = ContinuousClock().now
         defer { logElapsed("select-model-total", since: start) }
+        if modernTransaction { return try await selectModernModel(model, invocation: invocation).expectedTitle }
         let context = try await openNativePicker(invocation: invocation)
         let row = try element(for: context.picker.modelRow, in: context.live)
         let pickerMenu = owningMenu(of: row)
@@ -57,6 +65,7 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     func selectEffort(_ effort: ChatGPTReasoningEffort, invocation: HotkeyInvocation) async throws -> String {
         let start = ContinuousClock().now
         defer { logElapsed("select-effort-total", since: start) }
+        if modernTransaction { return try await selectModernEffort(effort, invocation: invocation).expectedTitle }
         let context = try await openNativePicker(invocation: invocation)
         let row = try element(for: context.picker.effortRow, in: context.live)
         let pickerMenu = owningMenu(of: row)
@@ -79,6 +88,10 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         defer { logElapsed("restore-composer-focus", since: start) }
         do {
             var context = try await resolveContext(invocation: invocation)
+            if modernTransaction {
+                try await dismissModernPicker(invocation: invocation)
+                context = try await resolveContext(invocation: invocation)
+            }
             if let picker = nativePicker(in: context.window) {
                 try dismissNativePicker(picker, invocation: invocation)
                 try await Task.sleep(for: .milliseconds(50))
@@ -180,6 +193,140 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         return ComposerFocusTarget(element: focused)
     }
 
+    private func modernContext(invocation: HotkeyInvocation) async throws -> (Context, LiveChatGPTSnapshot, ChatGPTModernComposer) {
+        let context = try await resolveContext(invocation: invocation)
+        let live = chatGPTSnapshot(window: context.window)
+        guard let composer = try? ChatGPTModernPlanner.composer(in: live.snapshot) else { throw SwitchFailure.pickerNotFound }
+        return (context, live, composer)
+    }
+
+    private func modernSelection(invocation: HotkeyInvocation) async throws -> ChatGPTSelection {
+        let (_, live, composer) = try await modernContext(invocation: invocation)
+        if let power = try? ChatGPTModernPlanner.powerPicker(in: live.snapshot) {
+            return power.status.selection
+        }
+        guard let selection = composer.selection else { throw SwitchFailure.pickerNotFound }
+        return selection
+    }
+
+    private func waitForModernSelection(
+        model: ChatGPTModel, effort: ChatGPTReasoningEffort? = nil, invocation: HotkeyInvocation
+    ) async throws -> ChatGPTSelection {
+        let end = ContinuousClock().now.advanced(by: deadline)
+        while ContinuousClock().now < end {
+            try TrustedTargetAction.validate(invocation)
+            if let selection = try? await modernSelection(invocation: invocation),
+               selection.model == model, effort == nil || selection.effort == effort { return selection }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        throw SwitchFailure.pickerNotFound
+    }
+
+    private func openPowerPicker(invocation: HotkeyInvocation) async throws -> (LiveChatGPTSnapshot, ChatGPTPowerPicker) {
+        var (_, live, composer) = try await modernContext(invocation: invocation)
+        if let power = try? ChatGPTModernPlanner.powerPicker(in: live.snapshot) { return (live, power) }
+        if live.snapshot.byID[composer.controlID]?.expanded == true {
+            try await dismissModernPicker(invocation: invocation)
+            (_, live, composer) = try await modernContext(invocation: invocation)
+        }
+        guard let control = live.elements[composer.controlID] else { throw SwitchFailure.pickerNotFound }
+        try TrustedTargetAction.press(control, invocation: invocation)
+        let end = ContinuousClock().now.advanced(by: deadline)
+        while ContinuousClock().now < end {
+            let (_, fresh, _) = try await modernContext(invocation: invocation)
+            if let power = try? ChatGPTModernPlanner.powerPicker(in: fresh.snapshot) { return (fresh, power) }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        throw SwitchFailure.pickerNotFound
+    }
+
+    private func selectModernModel(_ model: ChatGPTModel, invocation: HotkeyInvocation) async throws -> ChatGPTSelection {
+        var (_, live, composer) = try await modernContext(invocation: invocation)
+        var items = try? ChatGPTModernPlanner.modelList(in: live.snapshot, composer: composer)
+        if items == nil {
+            let (powerLive, power) = try await openPowerPicker(invocation: invocation)
+            guard let row = powerLive.elements[power.modelActionID] else { throw SwitchFailure.modelRowNotActionable }
+            try TrustedTargetAction.press(row, invocation: invocation)
+            let end = ContinuousClock().now.advanced(by: deadline)
+            while ContinuousClock().now < end {
+                (_, live, composer) = try await modernContext(invocation: invocation)
+                items = try? ChatGPTModernPlanner.modelList(in: live.snapshot, composer: composer)
+                if items != nil { break }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+        }
+        guard let id = items?[model], let row = live.elements[id] else { throw SwitchFailure.modelUnavailable(model.rawValue) }
+        try TrustedTargetAction.press(row, invocation: invocation)
+        return try await waitForModernSelection(model: model, invocation: invocation)
+    }
+
+    private func selectModernEffort(_ effort: ChatGPTReasoningEffort, invocation: HotkeyInvocation) async throws -> ChatGPTSelection {
+        var (live, power) = try await openPowerPicker(invocation: invocation)
+        let model = power.status.selection.model
+        var visited = Set<ChatGPTPowerStatus>()
+        // Each arrow is a documented semantic Power adjustment, not positional menu
+        // navigation. Reacquire and verify its announced model, effort, and bounds each time.
+        for _ in 0..<8 {
+            if power.status.selection.effort == effort { return power.status.selection }
+            guard visited.insert(power.status).inserted,
+                  let increase = try? power.status.direction(toward: effort),
+                  let control = live.elements[power.powerID] else { throw SwitchFailure.effortUnavailable(effort.rawValue) }
+            try TrustedTargetAction.validate(invocation)
+            guard AXUIElementSetAttributeValue(control, kAXFocusedAttribute as CFString, kCFBooleanTrue) == .success else {
+                throw SwitchFailure.effortRowNotActionable
+            }
+            // Chromium acknowledges AXFocused before its focused-element reference changes.
+            let focusEnd = ContinuousClock().now.advanced(by: .milliseconds(500))
+            var focused = false
+            while ContinuousClock().now < focusEnd {
+                let context = try await resolveContext(invocation: invocation)
+                let target: AXUIElement? = value(context.application, kAXFocusedUIElementAttribute)
+                if target.map({ CFEqual($0, control) }) == true { focused = true; break }
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            guard focused else { throw SwitchFailure.effortRowNotActionable }
+            try TrustedTargetAction.postFocusedKey(keyCode: increase ? 124 : 123, flags: [], invocation: invocation)
+            let previous = power.status
+            let end = ContinuousClock().now.advanced(by: deadline)
+            var changed = false
+            while ContinuousClock().now < end {
+                let (_, fresh, _) = try await modernContext(invocation: invocation)
+                if let observed = try? ChatGPTModernPlanner.powerPicker(in: fresh.snapshot), observed.status != previous {
+                    guard observed.status.selection.model == model,
+                          observed.status.total == previous.total,
+                          observed.status.position == previous.position + (increase ? 1 : -1) else {
+                        throw SwitchFailure.effortUnavailable(effort.rawValue)
+                    }
+                    // A missing intermediate effort must not cause oscillation past the target.
+                    if observed.status.selection.effort != effort,
+                       (try? observed.status.direction(toward: effort)) != increase {
+                        throw SwitchFailure.effortUnavailable(effort.rawValue)
+                    }
+                    live = fresh; power = observed; changed = true; break
+                }
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            guard changed else { throw SwitchFailure.effortUnavailable(effort.rawValue) }
+        }
+        throw SwitchFailure.effortUnavailable(effort.rawValue)
+    }
+
+    private func dismissModernPicker(invocation: HotkeyInvocation) async throws {
+        for _ in 0..<3 {
+            let (_, live, composer) = try await modernContext(invocation: invocation)
+            let powerOpen = (try? ChatGPTModernPlanner.powerPicker(in: live.snapshot)) != nil
+            let listOpen = (try? ChatGPTModernPlanner.modelList(in: live.snapshot, composer: composer)) != nil
+            guard powerOpen || listOpen else { return }
+            try TrustedTargetAction.postFocusedKey(keyCode: 53, flags: [], invocation: invocation)
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        let (_, live, composer) = try await modernContext(invocation: invocation)
+        guard (try? ChatGPTModernPlanner.powerPicker(in: live.snapshot)) == nil,
+              (try? ChatGPTModernPlanner.modelList(in: live.snapshot, composer: composer)) == nil else {
+            throw SwitchFailure.pickerNotFound
+        }
+    }
+
     private func openNativePicker(invocation: HotkeyInvocation) async throws -> NativePickerContext {
         let context = try await resolveContext(invocation: invocation)
         if let picker = nativePicker(in: context.window) {
@@ -201,8 +348,7 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     }
 
     private func nativePicker(in window: AXUIElement) -> NativePickerContext? {
-        let elements = breadthFirst(root: window, maxDepth: 18, maxNodes: 3_500)
-        let live = chatGPTSnapshot(from: elements, window: window)
+        let live = chatGPTSnapshot(window: window)
         guard let picker = try? ChatGPTSurfacePlanner.nativePicker(in: live.snapshot) else { return nil }
         return NativePickerContext(window: window, live: live, picker: picker)
     }
@@ -246,7 +392,7 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     ) async -> AXUIElement? {
         let clock = ContinuousClock(); let end = clock.now.advanced(by: timeout)
         while clock.now < end {
-            let candidates = breadthFirst(root: root, maxDepth: 18, maxNodes: 3_500).filter { element in
+            let candidates = breadthFirst(root: root, maxDepth: 40, maxNodes: 3_500).filter { element in
                 guard frame(element) != nil, CFHash(element) != excluded.map(CFHash) else { return false }
                 let role = string(element, kAXRoleAttribute)
                 let subrole = string(element, kAXSubroleAttribute)
@@ -303,47 +449,70 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         logger.info("phase=\(phase, privacy: .public) elapsed=\(String(describing: start.duration(to: ContinuousClock().now)), privacy: .public)")
     }
 
-    private func chatGPTSnapshot(from elements: [AXUIElement], window: AXUIElement) -> LiveChatGPTSnapshot {
-        let ids = Dictionary(uniqueKeysWithValues: elements.enumerated().map { (CFHash($0.element), $0.offset) })
-        let resolved = Dictionary(uniqueKeysWithValues: elements.enumerated().map { ($0.offset, $0.element) })
-        let nodes = elements.enumerated().map { offset, element -> ChatGPTAXNode in
+    private func chatGPTSnapshot(window: AXUIElement) -> LiveChatGPTSnapshot {
+        // Modern task composers occur 28 levels below the window. Bound breadth and
+        // depth independently, and preserve traversal edges: AXParent can be unstable.
+        var queue: [(AXUIElement, Int?, Int)] = [(window, nil, 0)]
+        var elements: [Int: AXUIElement] = [:]
+        var nodes: [ChatGPTAXNode] = []
+        var visited = Set<CFHashCode>()
+        var index = 0
+        while index < queue.count && nodes.count < 3_500 {
+            let (element, parent, depth) = queue[index]; index += 1
+            guard visited.insert(CFHash(element)).inserted else { continue }
+            let id = nodes.count
+            let role = string(element, kAXRoleAttribute) ?? "AXUnknown"
             let actionNames = actions(element)
-            var nodeActions = Set<ChatGPTAXAction>()
-            if actionNames.contains(kAXPressAction as String) { nodeActions.insert(.press) }
-            if actionNames.contains(kAXShowMenuAction as String) { nodeActions.insert(.showMenu) }
-            var nodeLabels = typedLabels(labels(element))
-            if !nodeActions.isEmpty {
-                for child in breadthFirst(root: element, maxDepth: 4, maxNodes: 80) {
-                    nodeLabels.formUnion(typedLabels(labels(child)))
+            var actionSet = Set<ChatGPTAXAction>()
+            if actionNames.contains(kAXPressAction as String) { actionSet.insert(.press) }
+            if actionNames.contains(kAXShowMenuAction as String) { actionSet.insert(.showMenu) }
+            let control = ["AXMenuItem", "AXPopUpButton", "AXButton"].contains(role)
+            let typed = control ? typedLabels(labels(element)) : []
+            nodes.append(ChatGPTAXNode(id: id, parentID: parent, role: role, labels: typed,
+                actions: actionSet, visible: frame(element) != nil && (value(element, kAXEnabledAttribute) as Bool? ?? true),
+                frame: frame(element), expanded: value(element, kAXExpandedAttribute)))
+            elements[id] = element
+            // Input values and their text descendants are never needed for targeting.
+            guard depth < 40, role != "AXTextArea", role != "AXTextField" else { continue }
+            let children: [AXUIElement] = value(element, kAXChildrenAttribute) ?? []
+            let contents: [AXUIElement] = value(element, kAXContentsAttribute) ?? []
+            queue.append(contentsOf: (children + contents).map { ($0, id, depth + 1) })
+        }
+        let powerRoots = Set(nodes.filter { $0.labels.contains(.power) }.compactMap(\.parentID))
+        for index in nodes.indices where nodes[index].role == "AXStaticText" {
+            var parent = nodes[index].parentID
+            var isPickerText = false
+            for _ in 0..<5 {
+                guard let id = parent else { break }
+                if powerRoots.contains(id) || nodes[id].role == "AXMenuItem" { isPickerText = true; break }
+                parent = nodes[id].parentID
+            }
+            guard isPickerText, let element = elements[index] else { continue }
+            let old = nodes[index]
+            nodes[index] = ChatGPTAXNode(id: old.id, parentID: old.parentID, role: old.role,
+                labels: typedLabels(labels(element)), actions: old.actions, visible: old.visible, frame: old.frame)
+        }
+        // Legacy native rows may expose their closed labels only on text children.
+        for index in nodes.indices where nodes[index].role == "AXMenuItem" {
+            var labels = nodes[index].labels
+            for child in nodes where child.role == "AXStaticText" {
+                var parent = child.parentID
+                for _ in 0..<4 {
+                    guard let id = parent else { break }
+                    if id == index { labels.formUnion(child.labels); break }
+                    parent = nodes[id].parentID
                 }
             }
-            let parent: AXUIElement? = value(element, kAXParentAttribute)
-            return ChatGPTAXNode(
-                id: offset,
-                parentID: parent.flatMap { ids[CFHash($0)] },
-                role: string(element, kAXRoleAttribute) ?? "AXUnknown",
-                labels: nodeLabels,
-                actions: nodeActions,
-                visible: frame(element) != nil && (value(element, kAXEnabledAttribute) as Bool? ?? true),
-                frame: frame(element)
-            )
+            let old = nodes[index]
+            nodes[index] = ChatGPTAXNode(id: old.id, parentID: old.parentID, role: old.role,
+                labels: labels.subtracting([.unknownText]), actions: old.actions, visible: old.visible, frame: old.frame)
         }
-        return LiveChatGPTSnapshot(
-            snapshot: ChatGPTAXSnapshot(windowFrame: frame(window) ?? .zero, nodes: nodes),
-            elements: resolved
-        )
+        return LiveChatGPTSnapshot(snapshot: .init(windowFrame: frame(window) ?? .zero, nodes: nodes), elements: elements)
     }
 
     private func typedLabels(_ values: [String]) -> Set<ChatGPTAXLabel> {
-        var result = Set<ChatGPTAXLabel>()
-        for value in values {
-            if value == AppConstants.modelLabel { result.insert(.modelRow) }
-            if value == AppConstants.effortLabel { result.insert(.effortRow) }
-            if let model = ChatGPTSelection.detectedModel(in: value) { result.insert(.model(model)) }
-            if let effort = ChatGPTSelection.detectedEffort(in: value) { result.insert(.effort(effort)) }
-        }
-        if result.isEmpty, !values.isEmpty { result.insert(.unknownText) }
-        return result
+        let labels = values.reduce(into: Set<ChatGPTAXLabel>()) { $0.formUnion(ChatGPTControlLabels.classify($1)) }
+        return labels.count > 1 ? labels.subtracting([.unknownText]) : labels
     }
 
     private func breadthFirst(root: AXUIElement, maxDepth: Int, maxNodes: Int) -> [AXUIElement] {
@@ -363,8 +532,11 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     }
 
     private func labels(_ element: AXUIElement) -> [String] {
-        [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute]
-            .compactMap { string(element, $0) }
+        let role = string(element, kAXRoleAttribute)
+        guard role != "AXTextArea", role != "AXTextField" else { return [] }
+        let attributes = [kAXTitleAttribute, kAXDescriptionAttribute]
+            + (role == "AXStaticText" ? [kAXValueAttribute] : [])
+        return attributes.compactMap { string(element, $0) }
             .filter { !$0.isEmpty }
     }
 

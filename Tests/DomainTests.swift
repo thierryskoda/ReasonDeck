@@ -7,7 +7,7 @@ import Testing
 }
 
 @Test func supportedLabelsHaveOneTypedSourceOfTruth() {
-    #expect(ChatGPTModel.allCases.map(\.rawValue) == ["5.6 Sol", "5.6 Terra", "5.6 Luna", "5.5", "5.4", "5.4 Mini", "5.3 Codex Spark"])
+    #expect(ChatGPTModel.allCases.map(\.rawValue) == ["6 Astra", "5.6 Sol", "5.6 Terra", "5.6 Luna", "5.5", "5.4", "5.4 Mini", "5.3 Codex Spark"])
     #expect(ChatGPTReasoningEffort.allCases.map(\.rawValue) == ["Extra High", "Medium", "None", "Light", "Ultra", "High", "Max"])
     #expect(ClaudeCodeModel.allCases.map(\.rawValue) == ["Fable 5", "Opus 5", "Sonnet 5", "Haiku 4.5"])
     #expect(ClaudeCodeEffort.allCases.map(\.rawValue) == ["Auto", "Low", "Medium", "None", "High", "Extra High", "Max", "Ultracode"])
