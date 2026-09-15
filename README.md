@@ -14,7 +14,7 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.4.4)
 
-Version 0.4.3 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity, plus per-app compatibility health in Settings. Its ChatGPT adapter supports only the older native picker; the current task-composer fix is awaiting the next release.
+Version 0.4.4 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity, plus per-app compatibility health in Settings. Its ChatGPT adapter supports the current task composer, GPT-6 Astra, and the older native picker fallback.
 
 ### Install
 
