@@ -278,6 +278,40 @@ enum TrustedTargetAction {
         return previous
     }
 
+    static func hover(
+        frame: CGRect,
+        invocation: HotkeyInvocation
+    ) throws -> CGPoint? {
+        try validate(invocation)
+        guard frame.width > 0, frame.height > 0,
+              frame.width <= 1_000, frame.height <= 200,
+              frame.minX.isFinite, frame.minY.isFinite,
+              frame.maxX.isFinite, frame.maxY.isFinite
+        else { throw SwitchFailure.accessibility("Invalid Accessibility hover target geometry.") }
+
+        let application = AXUIElementCreateApplication(invocation.pid)
+        guard let window: AXUIElement = axValue(application, kAXFocusedWindowAttribute),
+              let windowFrame = AXWindowIdentity.frame(window),
+              windowFrame.intersects(frame),
+              windowFrame.contains(CGPoint(x: frame.midX, y: frame.midY))
+        else { throw SwitchFailure.targetChanged(invocation.target.displayName) }
+
+        let point = CGPoint(x: frame.midX, y: frame.midY)
+        let previous = CGEvent(source: nil)?.location
+
+        guard let move = CGEvent(
+            mouseEventSource: nil,
+            mouseType: .mouseMoved,
+            mouseCursorPosition: point,
+            mouseButton: .left
+        ) else { throw SwitchFailure.accessibility("Could not create a hover mouse event.") }
+
+        move.flags = []
+        move.post(tap: .cghidEventTap)
+        try validate(invocation)
+        return previous
+    }
+
     static func restorePointer(to point: CGPoint?) {
         guard let point,
               let restore = CGEvent(

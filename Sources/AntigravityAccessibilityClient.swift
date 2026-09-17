@@ -6,6 +6,7 @@ import os
 enum AntigravityPickerPlan: Equatable, Sendable {
     case alreadyApplied
     case pressMenuItem(titled: String)
+    case selectEffortSubmenu(modelRowTitled: String, effortTitled: String)
     case failure(SwitchFailure)
 }
 
@@ -14,6 +15,20 @@ enum AntigravityPickerState {
     private static let fastBadgeModels: Set<AntigravityModel> = [
         .gemini38Flash, .gemini37Flash, .gemini36Flash,
     ]
+    private static let submenuEffortModels: Set<AntigravityModel> = [
+        .gemini38Flash, .gemini37Flash, .gemini36Flash, .gemini35Flash, .gemini31Pro,
+    ]
+    private static let submenuEfforts: Set<AntigravityEffort> = [
+        .low, .medium, .high,
+    ]
+
+    static func isEffortSubmenuSupported(for model: AntigravityModel, effort: AntigravityEffort) -> Bool {
+        submenuEffortModels.contains(model) && submenuEfforts.contains(effort)
+    }
+
+    static func isSubmenuEffortTitle(_ title: String) -> Bool {
+        submenuEfforts.map(\.rawValue).contains(title)
+    }
 
     static func menuItemTitle(for selection: AntigravitySelection) -> String {
         "\(selection.model.rawValue) \(selection.effort.rawValue)"
@@ -39,10 +54,28 @@ enum AntigravityPickerState {
         guard exactMatches.count <= 1 else {
             return .failure(.accessibility("Antigravity exposed multiple exact picker rows."))
         }
-        guard exactMatches.count == 1 else {
-            return .failure(.modelUnavailable(expected))
+        if exactMatches.count == 1 {
+            return .pressMenuItem(titled: exactMatches[0])
         }
-        return .pressMenuItem(titled: exactMatches[0])
+
+        // If the exact combined row is not directly visible at the top level, check if
+        // the requested model is visible with a different effort tier that supports a flyout.
+        let modelMatches = menuItemTitles.filter { title in
+            guard let candidate = selection(fromMenuItemTitle: title) else { return false }
+            return candidate.model == requested.model
+        }
+        guard modelMatches.count <= 1 else {
+            return .failure(.accessibility("Antigravity exposed multiple model rows."))
+        }
+        if let matchingModelTitle = modelMatches.first,
+           isEffortSubmenuSupported(for: requested.model, effort: requested.effort) {
+            return .selectEffortSubmenu(
+                modelRowTitled: matchingModelTitle,
+                effortTitled: requested.effort.rawValue
+            )
+        }
+
+        return .failure(.modelUnavailable(expected))
     }
 
     static func selection(fromMenuItemTitle title: String) -> AntigravitySelection? {
@@ -69,11 +102,11 @@ enum AntigravityPickerState {
         return nil
     }
 
-    /// Antigravity 2.8.1 appends an exact `Fast` badge to three Medium Flash rows,
+    /// Antigravity appends an exact `Fast` badge to Flash rows,
     /// while its authoritative current-selection title omits that presentation badge.
-    private static func acceptedMenuItemTitles(for selection: AntigravitySelection) -> Set<String> {
+    static func acceptedMenuItemTitles(for selection: AntigravitySelection) -> Set<String> {
         let canonical = menuItemTitle(for: selection)
-        guard selection.effort == .medium, fastBadgeModels.contains(selection.model) else {
+        guard fastBadgeModels.contains(selection.model) else {
             return [canonical]
         }
         return [canonical, "\(canonical) Fast"]
@@ -148,6 +181,22 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
                 }
                 logger.info("Selecting Antigravity profile: \(title, privacy: .public)")
                 try TrustedTargetAction.press(matches[0].element, invocation: invocation)
+                try await waitForPickerToClose(invocation: invocation)
+            case .selectEffortSubmenu(let modelRowTitled, let effortTitled):
+                let matches = picker.menuItems.filter { $0.title == modelRowTitled }
+                guard matches.count == 1 else {
+                    throw SwitchFailure.accessibility("Antigravity model row became ambiguous.")
+                }
+                guard let modelFrame = AXWindowIdentity.frame(matches[0].element) else {
+                    throw SwitchFailure.accessibility("Antigravity model row frame was unreadable.")
+                }
+                logger.info("Hovering Antigravity model row: \(modelRowTitled, privacy: .public)")
+                let originalPointer = try TrustedTargetAction.hover(frame: modelFrame, invocation: invocation)
+                defer { TrustedTargetAction.restorePointer(to: originalPointer) }
+
+                let effortItem = try await findSubmenuEffortItem(titled: effortTitled, invocation: invocation)
+                logger.info("Selecting Antigravity effort: \(effortTitled, privacy: .public)")
+                try TrustedTargetAction.press(effortItem, invocation: invocation)
                 try await waitForPickerToClose(invocation: invocation)
             case .failure(let failure):
                 throw failure
@@ -260,6 +309,32 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
         return selection
     }
 
+    private func findSubmenuEffortItem(titled effortTitle: String, invocation: HotkeyInvocation) async throws -> AXUIElement {
+        let clock = ContinuousClock()
+        let end = clock.now.advanced(by: pickerTimeout)
+        while clock.now < end {
+            try TrustedTargetAction.validate(invocation)
+            let application = AXUIElementCreateApplication(invocation.pid)
+            guard let window: AXUIElement = value(application, kAXFocusedWindowAttribute),
+                  AXWindowIdentity.focusedWindowID(application: application, pid: invocation.pid)
+                    == invocation.focusedWindowID
+            else { throw SwitchFailure.targetChanged(ApplicationTarget.antigravity.displayName) }
+
+            let nodes = rawNodes(root: window, maxDepth: 35, maxNodes: 5_000)
+            let matching = nodes.filter {
+                $0.role == kAXMenuItemRole as String && $0.visible && $0.actionable && $0.title == effortTitle
+            }
+            if matching.count == 1 {
+                return matching[0].element
+            }
+            if matching.count > 1 {
+                throw SwitchFailure.accessibility("Antigravity exposed multiple exact effort submenu rows.")
+            }
+            try await Task.sleep(for: pollInterval)
+        }
+        throw SwitchFailure.effortUnavailable(effortTitle)
+    }
+
     private func openPickerSnapshot(invocation: HotkeyInvocation) throws -> OpenPicker? {
         try TrustedTargetAction.validate(invocation)
         let application = AXUIElementCreateApplication(invocation.pid)
@@ -325,7 +400,8 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
             let title: String?
             if let candidateTitle,
                AntigravityPickerState.selection(fromCurrentTitle: candidateTitle) != nil
-                || AntigravityPickerState.selection(fromMenuItemTitle: candidateTitle) != nil {
+                || AntigravityPickerState.selection(fromMenuItemTitle: candidateTitle) != nil
+                || AntigravityPickerState.isSubmenuEffortTitle(candidateTitle) {
                 title = candidateTitle
             } else {
                 title = nil

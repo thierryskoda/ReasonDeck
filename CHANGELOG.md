@@ -2,6 +2,18 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Fixed
+
+- Support Antigravity's two-tier model selector by revealing and selecting effort tiers (Low, Medium, High) from model flyout submenus when the exact combined row is not exposed at the root level.
+- Map Fast-badged Flash models across Low, Medium, and High effort tiers in Antigravity.
+
+### Safety
+
+- Move the pointer only over verified model row bounds within the active Antigravity window to open flyout submenus, and restore the mouse position immediately.
+- Require exact matching effort submenu items and verify final model and effort state before reporting success.
+
 ## 0.4.4 - 2026-09-15
 
 ### Added

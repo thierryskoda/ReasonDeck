@@ -57,6 +57,12 @@ import Testing
         fromMenuItemTitle: "Gemini 3.8 Flash Medium Fast"
     ) == AntigravitySelection(model: .gemini38Flash, effort: .medium))
     #expect(AntigravityPickerState.selection(
+        fromMenuItemTitle: "Gemini 3.8 Flash High Fast"
+    ) == AntigravitySelection(model: .gemini38Flash, effort: .high))
+    #expect(AntigravityPickerState.selection(
+        fromMenuItemTitle: "Gemini 3.8 Flash Low Fast"
+    ) == AntigravitySelection(model: .gemini38Flash, effort: .low))
+    #expect(AntigravityPickerState.selection(
         fromCurrentTitle: "Select model, current: Gemini 3.8 Flash Medium"
     ) == AntigravitySelection(model: .gemini38Flash, effort: .medium))
     #expect(AntigravityPickerState.selection(
@@ -79,7 +85,24 @@ import Testing
         requested: requested
     )
 
-    #expect(plan == .failure(.modelUnavailable("Gemini 3.1 Pro High")))
+    #expect(plan == .selectEffortSubmenu(
+        modelRowTitled: "Gemini 3.1 Pro Low",
+        effortTitled: "High"
+    ))
+}
+
+@Test func antigravityPickerPlanFailsClosedWhenEffortSubmenuIsUnsupported() {
+    let requested = AntigravitySelection(model: .claudeOpus46, effort: .high)
+    let plan = AntigravityPickerState.plan(
+        currentTitle: "Select model, current: GPT-OSS 120B (Medium)",
+        menuItemTitles: [
+            "Claude Opus 4.6 (Thinking)",
+            "GPT-OSS 120B (Medium)"
+        ],
+        requested: requested
+    )
+
+    #expect(plan == .failure(.modelUnavailable("Claude Opus 4.6 High")))
 }
 
 @Test func antigravityPickerPlanTargetsOneExactCombinedRow() {
@@ -97,13 +120,21 @@ import Testing
     #expect(plan == .pressMenuItem(titled: "Claude Opus 4.6 (Thinking)"))
 }
 
-@Test func antigravityPickerPlanMapsOnlyTheKnownFastBadgeToMedium() {
-    let requested = AntigravitySelection(model: .gemini37Flash, effort: .medium)
+@Test func antigravityPickerPlanMapsFlashFastBadgesAcrossTiers() {
+    let requestedMedium = AntigravitySelection(model: .gemini37Flash, effort: .medium)
     #expect(AntigravityPickerState.plan(
         currentTitle: "Select model, current: Gemini 3.1 Pro Low",
         menuItemTitles: ["Gemini 3.7 Flash Medium Fast", "Gemini 3.1 Pro Low"],
-        requested: requested
+        requested: requestedMedium
     ) == .pressMenuItem(titled: "Gemini 3.7 Flash Medium Fast"))
+
+    let requestedLow = AntigravitySelection(model: .gemini38Flash, effort: .low)
+    #expect(AntigravityPickerState.plan(
+        currentTitle: "Select model, current: Gemini 3.8 Flash High",
+        menuItemTitles: ["Gemini 3.8 Flash High Fast", "Gemini 3.1 Pro Low"],
+        requested: requestedLow
+    ) == .selectEffortSubmenu(modelRowTitled: "Gemini 3.8 Flash High Fast", effortTitled: "Low"))
+
     #expect(AntigravityPickerState.selection(
         fromMenuItemTitle: "Gemini 3.7 Flash Medium Faster"
     ) == nil)
