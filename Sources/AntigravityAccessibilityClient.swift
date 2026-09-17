@@ -194,9 +194,18 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
                 let originalPointer = try TrustedTargetAction.hover(frame: modelFrame, invocation: invocation)
                 defer { TrustedTargetAction.restorePointer(to: originalPointer) }
 
-                let effortItem = try await findSubmenuEffortItem(titled: effortTitled, invocation: invocation)
-                logger.info("Selecting Antigravity effort: \(effortTitled, privacy: .public)")
-                try TrustedTargetAction.press(effortItem, invocation: invocation)
+                let targetIndex = try await findSubmenuEffortIndex(titled: effortTitled, invocation: invocation)
+                logger.info("Selecting Antigravity effort: \(effortTitled, privacy: .public) at index \(targetIndex)")
+                // Chromium/Electron floating submenu items report zero/dummy AX frames and do not forward
+                // synthetic AXPress to web event handlers. Entering via Right Arrow and stepping via Down Arrow
+                // delivers verified selection via native keyboard routing.
+                try TrustedTargetAction.postFocusedKey(keyCode: 124, flags: [], invocation: invocation)
+                for _ in 0..<targetIndex {
+                    try await Task.sleep(for: .milliseconds(40))
+                    try TrustedTargetAction.postFocusedKey(keyCode: 125, flags: [], invocation: invocation)
+                }
+                try await Task.sleep(for: .milliseconds(40))
+                try TrustedTargetAction.postFocusedKey(keyCode: 36, flags: [], invocation: invocation)
                 try await waitForPickerToClose(invocation: invocation)
             case .failure(let failure):
                 throw failure
@@ -253,8 +262,8 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
     }
 
     private struct RawNode {
-        let id: CFHashCode
-        let parentID: CFHashCode?
+        let id: Int
+        let parentID: Int?
         let element: AXUIElement
         let role: String
         let title: String?
@@ -309,7 +318,7 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
         return selection
     }
 
-    private func findSubmenuEffortItem(titled effortTitle: String, invocation: HotkeyInvocation) async throws -> AXUIElement {
+    private func findSubmenuEffortIndex(titled effortTitle: String, invocation: HotkeyInvocation) async throws -> Int {
         let clock = ContinuousClock()
         let end = clock.now.advanced(by: pickerTimeout)
         while clock.now < end {
@@ -320,14 +329,16 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
                     == invocation.focusedWindowID
             else { throw SwitchFailure.targetChanged(ApplicationTarget.antigravity.displayName) }
 
-            let nodes = rawNodes(root: window, maxDepth: 35, maxNodes: 5_000)
-            let matching = nodes.filter {
-                $0.role == kAXMenuItemRole as String && $0.visible && $0.actionable && $0.title == effortTitle
+            let nodes = rawNodes(root: window, maxDepth: 38, maxNodes: 5_000)
+            let effortRows = nodes.filter {
+                $0.role == kAXMenuItemRole as String && $0.visible && $0.actionable
+                    && $0.title.map(AntigravityPickerState.isSubmenuEffortTitle) == true
             }
-            if matching.count == 1 {
-                return matching[0].element
+            let matchingIndices = effortRows.indices.filter { effortRows[$0].title == effortTitle }
+            if matchingIndices.count == 1 {
+                return matchingIndices[0]
             }
-            if matching.count > 1 {
+            if matchingIndices.count > 1 {
                 throw SwitchFailure.accessibility("Antigravity exposed multiple exact effort submenu rows.")
             }
             try await Task.sleep(for: pollInterval)
@@ -343,9 +354,9 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
                 == invocation.focusedWindowID
         else { throw SwitchFailure.targetChanged(ApplicationTarget.antigravity.displayName) }
 
-        // Antigravity 2.8.1 nests the owned picker group 23 levels below the focused window.
-        // Keep the scan bounded while leaving a small structural-drift margin.
-        let nodes = rawNodes(root: window, maxDepth: 32, maxNodes: 5_000)
+        // Antigravity 2.13 nests the owned picker group up to 30 levels below the focused window,
+        // with menu rows and submenus reaching depths 33–35.
+        let nodes = rawNodes(root: window, maxDepth: 38, maxNodes: 5_000)
         let currentNodes = nodes.filter {
             $0.visible && $0.title.flatMap(AntigravityPickerState.selection(fromCurrentTitle:)) != nil
         }
@@ -374,10 +385,14 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
 
     /// Reads titles only from allowlisted control roles and retains only closed model/effort labels.
     /// Editor and transcript text nodes are never inspected or collected.
+    ///
+    /// Uses sequential integer IDs instead of CFHash(AXUIElement): CoreFoundation creates wrapper
+    /// pointers on the fly for AX elements in Electron/Chromium, causing hash collisions across
+    /// distinct nodes that prematurely prune BFS branches. Only kAXChildrenAttribute is traversed;
+    /// combining with kAXVisibleChildrenAttribute creates duplicate entries and queue bloat.
     private func rawNodes(root: AXUIElement, maxDepth: Int, maxNodes: Int) -> [RawNode] {
-        var queue: [(AXUIElement, CFHashCode?, Int)] = [(root, nil, 0)]
+        var queue: [(AXUIElement, Int?, Int)] = [(root, nil, 0)]
         var output: [RawNode] = []
-        var visited = Set<CFHashCode>()
         var index = 0
         let titledRoles = Set([
             kAXGroupRole as String,
@@ -388,9 +403,8 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
 
         while index < queue.count, output.count < maxNodes {
             let (element, parentID, depth) = queue[index]
+            let nodeID = index
             index += 1
-            let id = CFHash(element)
-            guard visited.insert(id).inserted else { continue }
             let role: String = value(element, kAXRoleAttribute) ?? ""
             let hidden: Bool = value(element, "AXHidden") ?? false
             let enabled: Bool = value(element, kAXEnabledAttribute) ?? true
@@ -407,7 +421,7 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
                 title = nil
             }
             output.append(RawNode(
-                id: id,
+                id: nodeID,
                 parentID: parentID,
                 element: element,
                 role: role,
@@ -417,16 +431,15 @@ actor SystemAntigravityUIClient: AntigravityUIClient {
             ))
             guard depth < maxDepth else { continue }
             let children: [AXUIElement] = value(element, kAXChildrenAttribute) ?? []
-            let visibleChildren: [AXUIElement] = value(element, kAXVisibleChildrenAttribute) ?? []
-            queue.append(contentsOf: (children + visibleChildren).map { ($0, id, depth + 1) })
+            queue.append(contentsOf: children.map { ($0, nodeID, depth + 1) })
         }
         return output
     }
 
-    private func isDescendant(_ nodeID: CFHashCode, of ancestorID: CFHashCode, in nodes: [RawNode]) -> Bool {
+    private func isDescendant(_ nodeID: Int, of ancestorID: Int, in nodes: [RawNode]) -> Bool {
         let byID = Dictionary(uniqueKeysWithValues: nodes.map { ($0.id, $0) })
         var current = byID[nodeID]?.parentID
-        var visited = Set<CFHashCode>()
+        var visited = Set<Int>()
         while let id = current, visited.insert(id).inserted {
             if id == ancestorID { return true }
             current = byID[id]?.parentID
