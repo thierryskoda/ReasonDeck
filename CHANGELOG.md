@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.4.6 - 2026-09-17
+
+### Fixed
+
+- Deliver Antigravity effort flyout selection via verified submenu keyboard navigation
+
 ## 0.4.5 - 2026-09-17
 
 ### Fixed
