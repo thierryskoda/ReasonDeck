@@ -10,9 +10,9 @@ It is local-only and unofficial. It is not affiliated with or endorsed by OpenAI
 
 ## Download
 
-### [Download ReasonDeck 0.4.4 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.4.4/ReasonDeck-0.4.4.dmg)
+### [Download ReasonDeck 0.4.5 for Mac](https://github.com/thierryskoda/ReasonDeck/releases/download/v0.4.5/ReasonDeck-0.4.5.dmg)
 
-Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.4.4)
+Universal app for Apple silicon and Intel · macOS 14 or later · [release notes and checksum](https://github.com/thierryskoda/ReasonDeck/releases/tag/v0.4.5)
 
 Version 0.4.4 includes model-and-effort shortcuts for ChatGPT, Claude Desktop Chat, Cowork, and Code, Cursor, and Antigravity, plus per-app compatibility health in Settings. Its ChatGPT adapter supports the current task composer, GPT-6 Astra, and the older native picker fallback.
 
