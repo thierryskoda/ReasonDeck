@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Safety
+
+- Codex 26.924.22138 on macOS 26.5.1 shows GPT-6 Sol in its visible picker, but a signed live check found that ReasonDeck could not access the composer or picker through macOS Accessibility. Version 0.5.0 receives the shortcuts and then fails closed without changing the model; select it manually in this Codex version. Other Codex versions require their own live check.
+
 ## 0.5.0 - 2026-09-27
 
 ### Added
