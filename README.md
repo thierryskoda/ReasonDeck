@@ -73,6 +73,8 @@ Antigravity efforts currently recognized by source: High, Medium, Low, None, (Th
 
 ChatGPT support requires one visible composer with an unambiguous model control. Current task composers support the compact model list, the expanded inline model list, and the model-and-effort Power popover, including when a picker is already open. ReasonDeck reads the exact model and effort, selects a named model row, and adjusts the named Power control only after verifying focus and each announced change. Power labels **Standard** and **Extended** correspond to **Medium** and **High**. Older native pickers with separate Model/Effort rows still use **Select model** (`⌃⇧M`). Ambiguous multi-composer, preview, and sidebar-only surfaces remain unsupported.
 
+Known limitation: Codex app 26.924.22138 on macOS 26.5.1 visually offers GPT-6 Sol, but its composer and picker controls were absent from ReasonDeck's Accessibility view in a signed live check. Shortcuts fail closed and Settings shows **Needs update** for that running version. Select the model manually until Codex exposes controls that ReasonDeck can verify; this observation does not classify other Codex versions.
+
 Cursor support expects an idle Agent or Chat composer with its model chip visible. The 0.2.0 baseline covers Cursor 3.15.6 and 3.16.29 on macOS 26.5.1. Cursor's server-driven model list can change, so ReasonDeck accepts only exact labels it knows and fails closed on anything else.
 
 Compilation and unit tests are not compatibility proof. Each supported app version needs a signed live check before it is claimed for a release.
