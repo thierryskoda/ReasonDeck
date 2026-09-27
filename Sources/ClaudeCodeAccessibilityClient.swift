@@ -24,6 +24,8 @@ enum ClaudeChatLabels {
         "Fable 5.1": .fable51,
         "Fable 5 Requires usage credits For your toughest challenges": .fable5,
         "Fable 5 Requires usage credits": .fable5,
+        // Claude Chat currently exposes this description as one exact menu row.
+        "Opus 5.5 Most capable for ambitious work": .opus55,
         "Opus 5 For complex tasks": .opus5,
         "Opus 5": .opus5,
         "Sonnet 5 Most efficient for everyday tasks": .sonnet5,
@@ -101,6 +103,8 @@ enum ClaudeCodeLabels {
     private static let pickerModels: [String: ClaudeCodeModel] = [
         "Fable 5.1 Requires usage credits": .fable51,
         "Fable 5 Requires usage credits": .fable5,
+        // Code uses the bare row label; the closed popup may add "Model: ".
+        "Opus 5.5": .opus55,
         "Opus 5": .opus5,
         "Sonnet 5": .sonnet5,
         "Haiku 4.5": .haiku45,

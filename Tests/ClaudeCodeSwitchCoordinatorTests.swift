@@ -149,6 +149,10 @@ private let claudeInvocation = HotkeyInvocation(
         ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Extra")
             == ClaudeCodeSelection(model: .sonnet5, effort: .extraHigh)
     )
+    #expect(
+        ClaudeChatLabels.selection(inComposerTitle: "Model: Opus 5.5 Medium")
+            == ClaudeCodeSelection(model: .opus55, effort: .medium)
+    )
     #expect(ClaudeChatLabels.selection(inComposerTitle: "Sonnet 5 Medium") == nil)
     #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Turbo") == nil)
     #expect(ClaudeChatLabels.model(inComposerTitle: "Model: Haiku 4.5 Extended") == .haiku45)
@@ -162,6 +166,7 @@ private let claudeInvocation = HotkeyInvocation(
         ) == .fable5
     )
     #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5 For complex tasks") == .opus5)
+    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5.5 Most capable for ambitious work") == .opus55)
     #expect(
         ClaudeChatLabels.model(
             inPickerRow: "Sonnet 5 Most efficient for everyday tasks"
@@ -184,6 +189,7 @@ private let claudeInvocation = HotkeyInvocation(
         ) == nil
     )
     #expect(ClaudeChatLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
+    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5.5 experimental") == nil)
 }
 
 @Test func claudeChatModelRoutingPrefersTheVerifiedRootMenu() {
@@ -249,10 +255,13 @@ private let claudeInvocation = HotkeyInvocation(
 
 @Test func claudeCodePaidModelRowsRemainExactAndClosed() {
     #expect(ClaudeCodeLabels.model(inComposerTitle: "Opus 5") == .opus5)
+    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Opus 5.5") == .opus55)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Opus 5.5") == .opus55)
     #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5 Requires usage credits") == .fable5)
     #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5") == .sonnet5)
     #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5") == nil)
     #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
+    #expect(ClaudeCodeLabels.model(inPickerRow: "Opus 5.5 experimental") == nil)
 }
 
 @Test func claudeCodeComposerModelAcceptsBothVerifiedLabelForms() {

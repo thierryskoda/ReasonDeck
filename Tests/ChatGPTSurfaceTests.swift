@@ -216,6 +216,7 @@ private func modernChatSnapshot(open: Bool = false, power: Bool = false) -> Chat
     #expect(try high.direction(toward: .extraHigh))
     #expect(try !high.direction(toward: .medium))
     #expect(ChatGPTPowerStatus.parse("GPT-6 Astra Standard, 2 of 6.")?.selection.effort == .medium)
+    #expect(ChatGPTPowerStatus.parse("GPT-6 Sol Extended, 3 of 6.")?.selection == .init(model: .sol6, effort: .high))
     for text in ["GPT-6 Astra Extended, 0 of 6.", "GPT-6 Astra Extended, 7 of 6.",
                  "GPT-6 Astra Extended, 3 of 60.", "GPT-6 Astra Preview Extended, 3 of 6.",
                  "GPT-6 Astra Extended, 3 of 6. arbitrary suffix"] {
@@ -224,4 +225,6 @@ private func modernChatSnapshot(open: Bool = false, power: Bool = false) -> Chat
     #expect(ChatGPTControlLabels.classify("GPT-5.50 High") == [.unknownText])
     #expect(ChatGPTControlLabels.classify("Discuss GPT-6 Astra High") == [.unknownText])
     #expect(ChatGPTControlLabels.classify("GPT-6 Astra Extra High") == [.model(.astra6), .effort(.extraHigh)])
+    #expect(ChatGPTControlLabels.classify("GPT-6 Sol Extra High") == [.model(.sol6), .effort(.extraHigh)])
+    #expect(ChatGPTControlLabels.classify("GPT-6 Sol Preview High") == [.unknownText])
 }

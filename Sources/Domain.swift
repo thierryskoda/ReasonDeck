@@ -2,6 +2,7 @@ import Foundation
 
 enum ChatGPTModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
     case astra6 = "6 Astra"
+    case sol6 = "6 Sol"
     case sol56 = "5.6 Sol"
     case terra56 = "5.6 Terra"
     case luna56 = "5.6 Luna"
@@ -92,6 +93,7 @@ enum ClaudeCodeModel: String, CaseIterable, Codable, Hashable, Sendable, Identif
     // the case and letting the decoder drop stale assignments.
     case fable51 = "Fable 5.1"
     case fable5 = "Fable 5"
+    case opus55 = "Opus 5.5"
     case opus5 = "Opus 5"
     case sonnet5 = "Sonnet 5"
     case haiku45 = "Haiku 4.5"
