@@ -2,6 +2,16 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Added
+
+- Add GPT-6 Sol for ChatGPT Work and Codex, and Opus 5.5 for Claude Desktop Chat, Cowork, and Code, using their exact model labels.
+
+### Safety
+
+- Keep unknown or unavailable picker rows fail-closed; neither model is substituted when the active app, account, or workspace does not expose it.
+
 ## 0.4.7 - 2026-09-17
 
 ### Fixed
