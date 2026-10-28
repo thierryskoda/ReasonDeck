@@ -123,7 +123,15 @@ cd ReasonDeck
 cp Config/Local.xcconfig.example Config/Local.xcconfig
 ```
 
-Set `DEVELOPMENT_TEAM` in `Config/Local.xcconfig`, then run:
+Set `DEVELOPMENT_TEAM` and `CODE_SIGN_IDENTITY` in `Config/Local.xcconfig` to the team and exact Apple Development identity used by the installed copy. Run `security find-identity -v -p codesigning` to list your available identities. Then each update is one command:
+
+```sh
+scripts/dev.sh
+```
+
+It runs tests, builds a signed Release, verifies that its signing requirement matches the installed app, replaces `/Applications/ReasonDeck.app`, and relaunches that exact copy. Saved shortcuts and matching macOS permission grants are retained. A changed certificate or bundle identity stops the update before the running app is touched. Switching from a public Developer ID build to an Apple Development build still requires a one-time permission repair.
+
+To build without installing or relaunching:
 
 ```sh
 swift test
@@ -133,7 +141,6 @@ xcodebuild \
   -configuration Release \
   -derivedDataPath build \
   build
-open build/Build/Products/Release/ReasonDeck.app
 ```
 
 Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity. Set `DEVELOPMENT_TEAM` in `Config/Local.xcconfig` so Xcode signs with an Apple Development certificate; an ad-hoc build (`CODE_SIGN_IDENTITY = -`) is identified only by its binary hash, so macOS drops its Accessibility and Input Monitoring grants on every rebuild.
