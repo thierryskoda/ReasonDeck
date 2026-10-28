@@ -3,6 +3,8 @@
 - Status: Accepted
 - Scope: ChatGPT model-and-effort selection in the macOS helper
 
+For first checks, live log capture, and candidate verification, start with [Diagnose ChatGPT shortcuts](README.md#diagnose-chatgpt-shortcuts).
+
 ## September 2026 composer and Power picker
 
 ChatGPT 26.901.31953 exposes the task composer as an AXTextArea and AXPopUpButton with the same immediate parent, approximately 28 levels below the focused window. Its Control-Shift-M command can open an inline model list rather than the older native Model/Effort picker. GPT-6 Astra is a closed model value; an unrecognized current model must never be silently replaced.
@@ -81,7 +83,46 @@ On macOS 26.5.1 with ChatGPT 26.901.31953, the installed Developer ID signed Rea
 
 On macOS 26.5.1 with Codex 26.924.22138, a Developer ID signed ReasonDeck 0.5.0 diagnostic candidate captured repeated model-change requests and identified the frontmost Codex process. The focused window published only 14 Accessibility nodes: zero text areas, popups, or recognized model controls. The native `Control-Shift-M` attempt timed out with the same 14-node tree and `picker_not_found`. A bounded candidate also traversed `AXVisibleChildren` alongside `AXChildren` and `AXContents`, with no improvement. Codex returned unsupported/not-implemented errors for the app-level web Accessibility preparation attributes. The user-visible GPT-6 Sol Power panel and model list therefore do not establish an actionable Accessibility contract. These observations distinguish this failure from shortcut capture, installation, and permission setup; they apply only to the tested version and session. Keep this version fail-closed; do not add screen coordinates, menu positions, or unverified keyboard actions as a fallback. Before claiming support for a later Codex version, confirm that its Accessibility tree exposes one owned composer and exact picker controls, then prove model and effort changes plus final-state read-back with a signed build in an idle normal-layout session.
 
-On macOS 26.6.2 with ChatGPT 26.1021.31345, a locally Apple Development signed ReasonDeck 0.5.0 build 21 candidate passed the saved Command-Shift-1 (GPT-6.1 Sol/Extra High) and Command-Shift-2 (GPT-6.1 Sol/Light) shortcuts after accepting the single-wrapper composer relationship. Both completed with verified final selections and composer-focus restoration, and the user confirmed both visible changes. This check covers those effort transitions on the current model; it does not certify model changes, every available model, Intel hardware, or a published release artifact.
+On macOS 26.6.2 with ChatGPT 26.1021.31345, a locally Apple Development signed ReasonDeck 0.5.0 build 21 candidate passed the saved Command-Shift-1 (GPT-6.1 Sol/Extra High) and Command-Shift-2 (GPT-6.1 Sol/Light) shortcuts after accepting the single-wrapper composer relationship. Both completed with verified final selections; cleanup logged no focus-restoration error, and the user confirmed both visible effort changes. This check covers those effort transitions on the current model; it does not certify model changes, every available model, Intel hardware, or a published release artifact.
+
+## October 2026 regression findings
+
+This was a refinement of the composer ownership contract, not a change to the safety boundary or Power adjustment mechanism. The failure was captured before the fix, reduced to a regression test, and checked again through the installed signed app. Temporary diagnostic probes were removed after diagnosis. The durable evidence below does not depend on retaining a `/private/tmp` log or this conversation.
+
+| Finding | What the investigation established | Where to start next time |
+| --- | --- | --- |
+| The model catalog and Settings had fallen behind the app | `957e278` added recognition for the new model labels; `fbdf606` removed retired Settings choices and preserved unrelated saved assignments. These changes alone did not repair the later composer-structure failure. | Exact model and effort enums, control-label classification, and per-assignment decoding; avoid a second Settings-only model list. |
+| Installed files and the running app could differ | Updating an app bundle did not replace the process serving Settings and shortcuts. | The executable path and source commit, followed by an explicit relaunch of the installed copy. |
+| Permission problems and picker problems were separate | After repairing refused Accessibility/Input Monitoring grants, real shortcuts reached `captured`/`dispatched` but still ended in `picker_not_found`. Rebuilding with a stable identity and relaunching retained readiness. | Runtime permission state and designated requirement first; once capture works and permissions are ready, inspect the AX contract. |
+| Preparation errors did not prove missing controls | `manualError=-25205 enhancedError=-25208` appeared before both failed and successful transactions. Some failed captures contained hundreds of controls. | Actual control counts and relationships; do not keep retrying unsupported preparation attributes as the proposed fix. |
+| One capture did not expose the intended input | A diagnostic snapshot had zero text areas; another later snapshot exposed two. The latter included one uniquely owned model control. | Exact target version, captured window, and focused message field; distinguish a missing input from an ambiguous composer. |
+| A panel opening was insufficient proof | Modern-composer discovery failed and the legacy Control-Shift-M path opened UI whose old Model/Effort contract could not be verified. | Determine which adapter path was selected before changing Power actions or adding keyboard steps. |
+
+### Minimal structural evidence and fix
+
+The failing 26.1021.31345 snapshot had 1,510 nodes, two visible `AXTextArea` controls, and one recognized `AXPopUpButton` carrying GPT-6.1 Sol/High. The relevant traversal edges were:
+
+```text
+shared ancestor
+├── input branch A
+│   └── text area 861
+└── input branch B (829)
+    ├── text area 866
+    └── visible wrapper (867)
+        └── model-and-effort popup (877)
+```
+
+The node IDs identify that captured snapshot only. The earlier direct-sibling rule rejected popup 877 for input 866, so the transaction selected the legacy path and failed in about 3.4 seconds. `0e7166e` accepts the single visible wrapper within the input's own parent, while retaining exact labels, an actionable popup, one unique composer, captured-window validation, and fresh read-back after each action. It does not search arbitrary common ancestors or aggregate transcript text.
+
+In [ChatGPTSurfaceTests.swift](Tests/ChatGPTSurfaceTests.swift), `chatGPTModernComposerFindsTheWrappedPopupInItsOwnInputBranch` failed with `unsupportedSurface` for both closed and open-picker fixtures before the fix. It passes after the fix; adjacent inputs and duplicate, hidden, or deeper wrappers remain covered. The full suite passed 175 tests before the successful signed live check above. Completed events reported GPT-6.1 Sol/Extra High success in about 2.1 seconds and GPT-6.1 Sol/Light success in about 2.6 seconds. Those timings are observations, not performance guarantees.
+
+### Preserve permission continuity during development
+
+`d38e7a4` added [scripts/dev.sh](scripts/dev.sh). Its mechanical job is to test, build, compare the installed and candidate designated signing requirements, stage a fresh complete bundle, replace the installed copy, and relaunch that exact path. Keep diagnosis and judgments about changed UI contracts with the maintainer; do not make the updater guess how to repair permissions.
+
+Pin the exact certificate in ignored `Config/Local.xcconfig`, following the [tracked example](Config/Local.xcconfig.example). The same team name alone is insufficient: the updater requires the designated requirements to match. Switching between public Developer ID and local Apple Development signing can require a one-time grant repair. Repeated same-identity development updates should not require removing and reinstalling the app or resetting saved shortcuts.
+
+The updater stages into a fresh bundle because copying with `ditto` directly over the installed directory merges it and can retain deleted resources, invalidating the new signature. Checks on disposable app copies exercised removal of an obsolete resource and restoration of the prior bundle after a forced failure. A failed build or changed signing requirement stops before the running app is touched. See the script for the current rollback and launch checks rather than duplicating them here.
 
 ## Supersession condition
 
