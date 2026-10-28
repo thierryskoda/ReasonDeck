@@ -137,6 +137,8 @@ Only the DMG and `SHA256SUMS` are public release assets.
 
 ## 4. Perform live release checks
 
+Before checking a local candidate, quit the running copy and verify the launched executable's path; installing another copy does not update the process already serving Settings and shortcuts.
+
 Use a clean macOS user account or another Mac.
 
 1. Verify `SHA256SUMS` against the DMG.

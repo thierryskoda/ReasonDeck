@@ -10,10 +10,6 @@ enum ChatGPTModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiab
     case sol56 = "5.6 Sol"
     case terra56 = "5.6 Terra"
     case luna56 = "5.6 Luna"
-    case model55 = "5.5"
-    case model54 = "5.4"
-    case mini54 = "5.4 Mini"
-    case codexSpark53 = "5.3 Codex Spark"
 
     var id: String { rawValue }
 }
