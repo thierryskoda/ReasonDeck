@@ -228,3 +228,27 @@ private func modernChatSnapshot(open: Bool = false, power: Bool = false) -> Chat
     #expect(ChatGPTControlLabels.classify("GPT-6 Sol Extra High") == [.model(.sol6), .effort(.extraHigh)])
     #expect(ChatGPTControlLabels.classify("GPT-6 Sol Preview High") == [.unknownText])
 }
+
+@Test(arguments: ["6.1 Sol", "6.1 Terra", "6 Luna"])
+func chatGPTCurrentModelsResolveAcrossComposerListAndPower(_ label: String) throws {
+    let model = try #require(ChatGPTModel(rawValue: label))
+    let selection = ChatGPTSelection(model: model, effort: .extraHigh)
+    let nodes = [
+        chatNode(0), chatNode(1, parent: 0),
+        chatNode(2, parent: 1, role: "AXTextArea"),
+        chatNode(3, parent: 1, role: "AXPopUpButton",
+            labels: ChatGPTControlLabels.classify("GPT-\(label) Extra High"), actions: [.press]),
+        chatNode(4, parent: 0),
+        chatNode(5, parent: 4, role: "AXButton",
+            labels: ChatGPTControlLabels.classify("GPT-\(label)"), actions: [.press]),
+        chatNode(6, parent: 4, role: "AXButton", labels: [.model(.sol56)], actions: [.press]),
+    ]
+    let snapshot = chatSnapshot(nodes)
+    let composer = try ChatGPTModernPlanner.composer(in: snapshot)
+    #expect(composer.selection == selection)
+    #expect(try ChatGPTModernPlanner.modelList(in: snapshot, composer: composer)[model] == 5)
+    #expect(ChatGPTPowerStatus.parse("GPT-\(label) Extra High, 4 of 5.")?.selection == selection)
+    #expect(ChatGPTPowerStatus.parse("\(label) Standard, 2 of 5.")?.selection.effort == .medium)
+    #expect(ChatGPTPowerStatus.parse("\(label) Extended, 3 of 5.")?.selection.effort == .high)
+    #expect(ChatGPTControlLabels.classify("GPT-\(label) Preview Extra High") == [.unknownText])
+}

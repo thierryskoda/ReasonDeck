@@ -52,7 +52,7 @@ The v0.2.7 ChatGPT adapter passed signed live switching on macOS 26.5.1 with Cha
 
 The v0.4.4 candidate passed signed live switching on macOS 26.5.1 with ChatGPT 26.908.70816, including already-applied, Light, and High outcomes through the current task composer. These checks ran on Apple silicon; the published notarized artifact still requires fresh-download verification before this release claim is complete.
 
-ChatGPT models currently recognized by source: 6 Astra, 6 Sol, 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark. GPT-6 Sol is offered in Work and Codex when the account and workspace have access; ordinary Chat conversations do not offer it.
+ChatGPT models currently recognized by source: 6.1 Sol, 6.1 Terra, 6 Astra, 6 Sol, 6 Luna, 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark. GPT-6 Sol is offered in Work and Codex when the account and workspace have access; ordinary Chat conversations do not offer it.
 
 Claude Desktop models currently recognized by source: Fable 5.1, Fable 5, Opus 5.5, Opus 5, Sonnet 5, and Haiku 4.5. Opus 5.5 may require the latest Claude Desktop app before Code enables its picker row.
 

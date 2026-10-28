@@ -4,8 +4,13 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ## Unreleased
 
+### Fixed
+
+- Recognize GPT-6.1 Sol, GPT-6.1 Terra, and GPT-6 Luna in ChatGPT's composer, model list, and reasoning Power control. Previously, selecting one of these models manually prevented ReasonDeck from recognizing the composer, including shortcuts that targeted an older model.
+
 ### Safety
 
+- Live Accessibility compatibility with ChatGPT 26.1013.40934 remains unverified; a signed live check is still required.
 - Codex 26.924.22138 on macOS 26.5.1 shows GPT-6 Sol in its visible picker, but a signed live check found that ReasonDeck could not access the composer or picker through macOS Accessibility. Version 0.5.0 receives the shortcuts and then fails closed without changing the model; select it manually in this Codex version. Other Codex versions require their own live check.
 
 ## 0.5.0 - 2026-09-27

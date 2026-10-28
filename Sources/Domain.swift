@@ -1,8 +1,12 @@
 import Foundation
 
 enum ChatGPTModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
+    // Current model labels also identify the composer, even when a shortcut targets another model.
+    case sol61 = "6.1 Sol"
+    case terra61 = "6.1 Terra"
     case astra6 = "6 Astra"
     case sol6 = "6 Sol"
+    case luna6 = "6 Luna"
     case sol56 = "5.6 Sol"
     case terra56 = "5.6 Terra"
     case luna56 = "5.6 Luna"
