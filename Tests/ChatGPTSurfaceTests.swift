@@ -252,3 +252,38 @@ func chatGPTCurrentModelsResolveAcrossComposerListAndPower(_ label: String) thro
     #expect(ChatGPTPowerStatus.parse("\(label) Extended, 3 of 5.")?.selection.effort == .high)
     #expect(ChatGPTControlLabels.classify("GPT-\(label) Preview Extra High") == [.unknownText])
 }
+
+// Minimized from the 26.1021.31345 trace: 866 -> 829, 877 -> 867 -> 829.
+// A second text area belongs to sibling branch 828 and must not claim the popup.
+@Test(arguments: [false, true])
+func chatGPTModernComposerFindsTheWrappedPopupInItsOwnInputBranch(open: Bool) throws {
+    let snapshot = chatSnapshot([
+        chatNode(671), chatNode(828, parent: 671), chatNode(829, parent: 671),
+        chatNode(861, parent: 828, role: "AXTextArea"),
+        chatNode(866, parent: 829, role: "AXTextArea"),
+        chatNode(867, parent: 829),
+        chatNode(877, parent: 867, role: "AXPopUpButton",
+            labels: open ? [.selectEffort] : [.model(.sol61), .effort(.high)], actions: [.press]),
+        chatNode(878, parent: 828, role: "AXPopUpButton", labels: [.unknownText], actions: [.press]),
+    ])
+    let composer = try ChatGPTModernPlanner.composer(in: snapshot)
+    #expect(composer.rootID == 829)
+    #expect(composer.inputID == 866)
+    #expect(composer.controlID == 877)
+    #expect(composer.selection == (open ? nil : .init(model: .sol61, effort: .high)))
+}
+
+@Test func chatGPTModernComposerRejectsDuplicateWrappedControlsAndDeeperOrHiddenWrappers() {
+    let nodes = [
+        chatNode(0), chatNode(1, parent: 0), chatNode(2, parent: 1, role: "AXTextArea"),
+        chatNode(3, parent: 1),
+        chatNode(4, parent: 3, role: "AXPopUpButton", labels: [.model(.sol61), .effort(.high)], actions: [.press]),
+    ]
+    let duplicate = chatSnapshot(nodes + [chatNode(5, parent: 1),
+        chatNode(6, parent: 5, role: "AXPopUpButton", labels: [.model(.sol61), .effort(.high)], actions: [.press])])
+    #expect(throws: ChatGPTSurfaceFailure.ambiguousComposer) { try ChatGPTModernPlanner.composer(in: duplicate) }
+    let deeper = chatSnapshot(nodes.filter { $0.id != 3 } + [chatNode(3, parent: 5), chatNode(5, parent: 1)])
+    #expect(throws: ChatGPTSurfaceFailure.unsupportedSurface) { try ChatGPTModernPlanner.composer(in: deeper) }
+    let hidden = chatSnapshot(nodes.filter { $0.id != 3 } + [chatNode(3, parent: 1, visible: false)])
+    #expect(throws: ChatGPTSurfaceFailure.unsupportedSurface) { try ChatGPTModernPlanner.composer(in: hidden) }
+}

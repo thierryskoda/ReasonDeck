@@ -6,6 +6,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ### Fixed
 
+- Recognize ChatGPT’s model-and-effort popup inside its current composer wrapper, without treating another text area in the window as its owner.
 - Add `scripts/dev.sh` for local test, signed build, update, and relaunch with a check that prevents changing the installed app's signing requirement and invalidating its permission grants.
 - Recognize GPT-6.1 Sol, GPT-6.1 Terra, and GPT-6 Luna in ChatGPT's composer, model list, and reasoning Power control. Previously, selecting one of these models manually prevented ReasonDeck from recognizing the composer, including shortcuts that targeted an older model.
 - Refresh ChatGPT's Settings choices to the current eight explicit models, removing 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark. Saved assignments to those removed models are dropped without substituting a different model; other app assignments on the same shortcut remain.
