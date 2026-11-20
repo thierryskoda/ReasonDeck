@@ -88,14 +88,23 @@ enum RuntimeCapabilities {
 }
 
 enum ClaudeCodeModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
-    // Claude Desktop 1.52386.3 labels its top tier "Fable 5.1". "Fable 5" stays
-    // until live evidence shows Claude no longer offers it; retire it by deleting
-    // the case and letting the decoder drop stale assignments.
+    // Every exact name Claude Desktop 6.6395.0 offers in its picker root and
+    // More models list. The current model must parse from this set before any
+    // shortcut can run, so a name Claude adds later disables switching while it
+    // is selected; add it here from a live read. Retire a name by deleting its
+    // case and letting the decoder drop stale assignments.
+    case fable52 = "Fable 5.2"
     case fable51 = "Fable 5.1"
     case fable5 = "Fable 5"
     case opus55 = "Opus 5.5"
     case opus5 = "Opus 5"
+    case opus48 = "Opus 4.8"
+    case opus47 = "Opus 4.7"
+    case opus46 = "Opus 4.6"
+    case sonnet55 = "Sonnet 5.5"
     case sonnet5 = "Sonnet 5"
+    case sonnet46 = "Sonnet 4.6"
+    case haiku55 = "Haiku 5.5"
     case haiku45 = "Haiku 4.5"
 
     var id: String { rawValue }

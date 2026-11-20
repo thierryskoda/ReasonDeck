@@ -140,75 +140,75 @@ private let claudeInvocation = HotkeyInvocation(
     ))
 }
 
-@Test func claudeChatComposerTitleParsesOnlyClosedModelAndEffortLabels() {
+@Test func claudeComposerTitleParsesOnlyClosedModelAndEffortLabels() {
     #expect(
-        ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Medium")
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5 Medium")
             == ClaudeCodeSelection(model: .sonnet5, effort: .medium)
     )
     #expect(
-        ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Extra")
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5 Extra")
             == ClaudeCodeSelection(model: .sonnet5, effort: .extraHigh)
     )
     #expect(
-        ClaudeChatLabels.selection(inComposerTitle: "Model: Opus 5.5 Medium")
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Opus 5.5 Medium")
             == ClaudeCodeSelection(model: .opus55, effort: .medium)
     )
-    #expect(ClaudeChatLabels.selection(inComposerTitle: "Sonnet 5 Medium") == nil)
-    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Turbo") == nil)
-    #expect(ClaudeChatLabels.model(inComposerTitle: "Model: Haiku 4.5 Extended") == .haiku45)
-    #expect(ClaudeChatLabels.effort(inComposerTitle: "Model: Haiku 4.5 Extended") == nil)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Sonnet 5 Medium") == nil)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5 Turbo") == nil)
+    #expect(ClaudePickerLabels.model(inComposerTitle: "Model: Haiku 4.5 Extended") == .haiku45)
+    #expect(ClaudePickerLabels.effort(inComposerTitle: "Model: Haiku 4.5 Extended") == nil)
 }
 
-@Test func claudeChatPickerRowsUseExactClosedLabelsAndRejectUpgradeRows() {
+@Test func claudePickerRowsUseExactClosedLabelsAndRejectUpgradeRows() {
     #expect(
-        ClaudeChatLabels.model(
+        ClaudePickerLabels.model(
             inPickerRow: "Fable 5 Requires usage credits For your toughest challenges"
         ) == .fable5
     )
-    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5 For complex tasks") == .opus5)
-    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5.5 Most capable for ambitious work") == .opus55)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5 For complex tasks") == .opus5)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5.5 Most capable for ambitious work") == .opus55)
     #expect(
-        ClaudeChatLabels.model(
+        ClaudePickerLabels.model(
             inPickerRow: "Sonnet 5 Most efficient for everyday tasks"
         ) == .sonnet5
     )
     #expect(
-        ClaudeChatLabels.model(
+        ClaudePickerLabels.model(
             inPickerRow: "Haiku 4.5 Fastest for quick answers"
         ) == .haiku45
     )
     #expect(
-        ClaudeChatLabels.model(inPickerRow: "Fable 5 Requires usage credits") == .fable5
+        ClaudePickerLabels.model(inPickerRow: "Fable 5 Requires usage credits") == .fable5
     )
-    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5") == .opus5)
-    #expect(ClaudeChatLabels.model(inPickerRow: "Sonnet 5") == .sonnet5)
-    #expect(ClaudeChatLabels.model(inPickerRow: "Haiku 4.5") == .haiku45)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5") == .opus5)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Sonnet 5") == .sonnet5)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Haiku 4.5") == .haiku45)
     #expect(
-        ClaudeChatLabels.model(
+        ClaudePickerLabels.model(
             inPickerRow: "Opus 5 Pro For complex tasks Upgrade"
         ) == nil
     )
-    #expect(ClaudeChatLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
-    #expect(ClaudeChatLabels.model(inPickerRow: "Opus 5.5 experimental") == nil)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5.5 experimental") == nil)
 }
 
-@Test func claudeChatModelRoutingPrefersTheVerifiedRootMenu() {
+@Test func claudeModelRoutingPrefersTheVerifiedRootMenu() {
     #expect(
-        ClaudeChatModelRouting.location(
+        ClaudePickerModelRouting.location(
             for: .sonnet5,
             rootModels: [.opus5, .sonnet5, .haiku45],
             hasMoreModels: true
         ) == .root
     )
     #expect(
-        ClaudeChatModelRouting.location(
+        ClaudePickerModelRouting.location(
             for: .sonnet5,
             rootModels: [.opus5],
             hasMoreModels: true
         ) == .moreModels
     )
     #expect(
-        ClaudeChatModelRouting.location(
+        ClaudePickerModelRouting.location(
             for: .sonnet5,
             rootModels: [.opus5],
             hasMoreModels: false
@@ -216,21 +216,21 @@ private let claudeInvocation = HotkeyInvocation(
     )
 }
 
-@Test func claudeChatEffortRowsMapExactChatLabelsToTypedEfforts() {
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Low") == .low)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Medium") == .medium)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Medium Default") == .medium)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "High Default") == .high)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Extra") == .extraHigh)
-    #expect(ClaudeChatLabels.pickerLabel(for: .medium) == "Medium")
-    #expect(ClaudeChatLabels.pickerRowLabels(for: .medium) == ["Medium", "Medium Default"])
-    #expect(ClaudeChatLabels.pickerLabel(for: .extraHigh) == "Extra")
-    #expect(ClaudeChatLabels.pickerRowLabels(for: .ultracode).isEmpty)
-    #expect(ClaudeChatLabels.pickerLabel(for: .ultracode) == nil)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Extended") == nil)
+@Test func claudeEffortRowsMapExactChatLabelsToTypedEfforts() {
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Low") == .low)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Medium") == .medium)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Medium Default") == .medium)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "High Default") == .high)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Extra") == .extraHigh)
+    #expect(ClaudePickerLabels.pickerLabel(for: .medium) == "Medium")
+    #expect(ClaudePickerLabels.pickerRowLabels(for: .medium) == ["Medium", "Medium Default", "Medium Recommended"])
+    #expect(ClaudePickerLabels.pickerLabel(for: .extraHigh) == "Extra")
+    #expect(ClaudePickerLabels.pickerRowLabels(for: .ultracode).isEmpty)
+    #expect(ClaudePickerLabels.pickerLabel(for: .ultracode) == nil)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Extended") == nil)
 }
 
-@Test func claudeChatMaxEffortAcceptsOnlyKnownExactRowVariants() {
+@Test func claudeMaxEffortAcceptsOnlyKnownExactRowVariants() {
     let expectedLabels: Set<String> = [
         "Max",
         "Max 2.5× or more usage",
@@ -238,60 +238,19 @@ private let claudeInvocation = HotkeyInvocation(
     ]
 
     #expect(
-        ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 3.5× or more usage")
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 3.5× or more usage")
             == ClaudeCodeSelection(model: .sonnet5, effort: .max)
     )
     #expect(
-        ClaudeChatLabels.selection(inComposerTitle: "Model: Opus 5 Max 2.5× or more usage")
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Opus 5 Max 2.5× or more usage")
             == ClaudeCodeSelection(model: .opus5, effort: .max)
     )
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Max") == .max)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Max 2.5× or more usage") == .max)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Max 3.5× or more usage") == .max)
-    #expect(ClaudeChatLabels.pickerRowLabels(for: .max) == expectedLabels)
-    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 2× usage") == nil)
-    #expect(ClaudeChatLabels.effort(inPickerRow: "Max 2× usage") == nil)
-}
-
-@Test func claudeCodePaidModelRowsRemainExactAndClosed() {
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Opus 5") == .opus5)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Opus 5.5") == .opus55)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Opus 5.5") == .opus55)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5 Requires usage credits") == .fable5)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5") == .sonnet5)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5") == nil)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Sonnet 5 experimental") == nil)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Opus 5.5 experimental") == nil)
-}
-
-@Test func claudeCodeComposerModelAcceptsBothVerifiedLabelForms() {
-    // Claude Desktop 1.46388.2 exposes the closed Code model popup as
-    // "Model: <name>"; earlier verified builds exposed the bare name.
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Opus 5") == .opus5)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Sonnet 5") == .sonnet5)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Haiku 4.5") == .haiku45)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5") == .fable5)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Sonnet 5") == .sonnet5)
-    // The qualified form stays closed to exact names, so neither trailing copy,
-    // a different prefix, nor a substring match may impersonate a model control.
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Sonnet 5 experimental") == nil)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5 Requires usage credits") == nil)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model:Opus 5") == nil)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Switch Model: Opus 5") == nil)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Effort: Extra") == nil)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: ") == nil)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Auto") == nil)
-}
-
-@Test func claudeCodeModelMenuUsesTheSameTwoExactVerifiedTitles() {
-    #expect(
-        ClaudeCodeLabels.modelControlTitles(for: .opus5)
-            == Set(["Opus 5", "Model: Opus 5"])
-    )
-    #expect(
-        ClaudeCodeLabels.modelControlTitles(for: .sonnet5)
-            == Set(["Sonnet 5", "Model: Sonnet 5"])
-    )
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Max") == .max)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Max 2.5× or more usage") == .max)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Max 3.5× or more usage") == .max)
+    #expect(ClaudePickerLabels.pickerRowLabels(for: .max) == expectedLabels)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5 Max 2× usage") == nil)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Max 2× usage") == nil)
 }
 
 @Test func claudeWebAccessibilityPreparationIsAMissingSurfaceFallbackOnly() {
@@ -385,36 +344,94 @@ private let claudeInvocation = HotkeyInvocation(
     #expect(ClaudeAccessibilityPreparationPolicy.shouldAttempt(pid: 99, lastAttempt: spent, now: now))
 }
 
-@Test func claudeDesktopTreatsFable51AsItsOwnExactModel() {
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5.1") == .fable51)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Model: Fable 5") == .fable5)
-    #expect(ClaudeCodeLabels.model(inComposerTitle: "Fable 5.1") == .fable51)
+// Labels live-read from Claude Desktop 6.6395.0's Code composer and its opened
+// picker, Effort menu, and More models menu.
+@Test func claudeDesktop6ComposerTitleCarriesModelEffortAndOptionalAccessBadge() {
     #expect(
-        ClaudeCodeLabels.modelControlTitles(for: .fable51)
-            == Set(["Fable 5.1", "Model: Fable 5.1"])
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Fable 5.2 Medium")
+            == ClaudeCodeSelection(model: .fable52, effort: .medium)
     )
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5.1 Requires usage credits") == .fable51)
-    #expect(ClaudeCodeLabels.model(inPickerRow: "Fable 5.1") == nil)
-    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Fable 5.1 High")?.model == .fable51)
-    #expect(ClaudeChatLabels.selection(inComposerTitle: "Model: Fable 5.1 High")?.effort == .high)
-    #expect(ClaudeChatLabels.model(inPickerRow: "Fable 5.1") == .fable51)
     #expect(
-        ClaudeChatLabels.model(
-            inPickerRow: "Fable 5.1 Requires usage credits For your toughest challenges"
-        ) == .fable51
+        ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5.5 Medium CVP")
+            == ClaudeCodeSelection(model: .sonnet55, effort: .medium)
     )
-    #expect(ClaudeChatLabels.model(inPickerRow: "Fable 5.2") == nil)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Fable 5.1 High")?.model == .fable51)
+    // The pre-6 Code forms carried no effort and no longer identify a composer.
+    #expect(ClaudePickerLabels.model(inComposerTitle: "Model: Fable 5.2") == nil)
+    #expect(ClaudePickerLabels.model(inComposerTitle: "Fable 5.2") == nil)
+    #expect(ClaudePickerLabels.model(inComposerTitle: "Effort: Medium") == nil)
+    // Badges stay exact: no other suffix, order, or unknown model may pass.
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5.5 Medium CVP: Defense Access") == nil)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5.5 CVP Medium") == nil)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Sonnet 5.5 Medium Pro") == nil)
+    #expect(ClaudePickerLabels.selection(inComposerTitle: "Model: Fable 5.3 Medium") == nil)
 }
 
-@Test func claudeCodePaidEffortSliderRequiresMatchingValueAndDescription() {
-    #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Low") == .low)
-    #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Extra") == .extraHigh)
-    #expect(ClaudeCodeLabels.effort(inComposerTitle: "Effort: Auto") == nil)
-    #expect(ClaudeCodeLabels.sliderSelection(value: 0, description: "Low") == .low)
-    #expect(ClaudeCodeLabels.sliderSelection(value: 2, description: "High") == .high)
-    #expect(ClaudeCodeLabels.sliderSelection(value: 4, description: "Max") == .max)
-    #expect(ClaudeCodeLabels.sliderSelection(value: 4, description: "High") == nil)
-    #expect(ClaudeCodeLabels.sliderValue(for: .extraHigh) == 3)
-    #expect(ClaudeCodeLabels.sliderValue(for: .automatic) == nil)
-    #expect(ClaudeCodeLabels.composerTitle(for: .medium) == "Effort: Medium")
+@Test func claudeDesktop6PickerRowsAreBareNamesWithOptionalExactAccessBadge() {
+    #expect(ClaudePickerLabels.model(inPickerRow: "Fable 5.2") == .fable52)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Haiku 5.5") == .haiku55)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5.5 CVP: Defense Access") == .opus55)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Sonnet 5.5 CVP: Defense Access") == .sonnet55)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Fable 5") == .fable5)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Fable 5.1") == .fable51)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 4.8 CVP: Defense Access") == .opus48)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 4.7 CVP: Defense Access") == .opus47)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 4.6") == .opus46)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Sonnet 4.6") == .sonnet46)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5.5 CVP") == nil)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Opus 5.5 CVP: Other Access") == nil)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Fable 5.3") == nil)
+    #expect(ClaudePickerLabels.model(inPickerRow: "More models") == nil)
+    #expect(ClaudePickerLabels.model(inPickerRow: "Effort Medium") == nil)
+}
+
+@Test func claudeDesktop6EffortMenuAcceptsTheRecommendedTagAndLeavesUltracodeUnavailable() {
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Medium Recommended") == .medium)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "High Recommended") == nil)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Ultracode") == nil)
+    #expect(ClaudePickerLabels.effortMenuTitles == [
+        "Effort Low", "Effort Medium", "Effort High", "Effort Extra", "Effort Max",
+        "Effort Max 2.5× or more usage", "Effort Max 3.5× or more usage",
+    ])
+}
+
+@Test func claudeCodeTabIsProvenByItsOwnPromptLabelOnly() {
+    #expect(ClaudeComposerSurface.promptLabel(codeTabSelected: true) == "Prompt")
+    #expect(ClaudeComposerSurface.promptLabel(codeTabSelected: false) == "Write your prompt to Claude")
+}
+
+@Test func claudeOpenedPickerMayBeAMenuOrATitledGroupButNothingElse() {
+    #expect(ClaudeMenuContainer.isCandidate(role: kAXMenuRole as String))
+    #expect(ClaudeMenuContainer.isCandidate(role: kAXGroupRole as String))
+    #expect(!ClaudeMenuContainer.isCandidate(role: kAXPopUpButtonRole as String))
+    #expect(!ClaudeMenuContainer.isCandidate(role: kAXMenuItemRole as String))
+}
+
+// Regression: distinct Chromium elements can share a CFHash, and a hash-keyed
+// visited set used to drop the composer's whole subtree. These stand-in
+// elements all hash and compare equal, as colliding AX elements do.
+private struct CollidingElement: Hashable {
+    let name: String
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+    func hash(into hasher: inout Hasher) {}
+}
+
+@Test func claudeTreeScanVisitsEveryNodeEvenWhenElementsAreIndistinguishable() {
+    let tree: [String: [String]] = ["window": ["sidebar", "main"], "main": ["composer"], "composer": ["prompt", "model"]]
+    let visits = ClaudeTreeScan.breadthFirst(
+        root: CollidingElement(name: "window"),
+        maxDepth: 10,
+        maxNodes: 100
+    ) { element in (tree[element.name] ?? []).map(CollidingElement.init(name:)) }
+
+    #expect(visits.map(\.element.name) == ["window", "sidebar", "main", "composer", "prompt", "model"])
+    #expect(visits.map(\.id) == [0, 1, 2, 3, 4, 5])
+    #expect(visits.map(\.parentID) == [nil, 0, 0, 2, 3, 3])
+    #expect(visits.map(\.depth) == [0, 1, 1, 2, 3, 3])
+}
+
+@Test func claudeTreeScanStaysWithinItsDepthAndNodeBounds() {
+    let children: (Int) -> [Int] = { [$0 * 2 + 1, $0 * 2 + 2] }
+    #expect(ClaudeTreeScan.breadthFirst(root: 0, maxDepth: 2, maxNodes: 100, children: children).map(\.element) == [0, 1, 2, 3, 4, 5, 6])
+    #expect(ClaudeTreeScan.breadthFirst(root: 0, maxDepth: 10, maxNodes: 4, children: children).map(\.element) == [0, 1, 2, 3])
 }

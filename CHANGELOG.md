@@ -4,8 +4,20 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 
 ## Unreleased
 
+### Fixed
+
+- Restore Claude Desktop Code shortcuts on Claude Desktop 6, which merged Code's model and effort controls into one picker.
+- Stop Claude Desktop shortcuts from failing in some sessions and working in others: ReasonDeck could skip parts of Claude's window while looking for the composer.
+- Allow switching away from a model chosen under **More models**.
+- Recognize every model Claude Desktop 6 offers, including Fable 5.2, Sonnet 5.5, Haiku 5.5, and the older models under **More models**, so shortcuts keep working whichever one is current.
+
+### Changed
+
+- Claude Desktop Code builds older than 6, with a separate model popup and effort slider, are no longer supported.
+
 ### Safety
 
+- Claude's opened picker is still identified by its exact title and exact row labels, including the exact account-access badge Claude appends to some models. An unrecognized badge or model disables switching instead of matching by prefix.
 - Codex 26.924.22138 on macOS 26.5.1 shows GPT-6 Sol in its visible picker, but a signed live check found that ReasonDeck could not access the composer or picker through macOS Accessibility. Version 0.5.0 receives the shortcuts and then fails closed without changing the model; select it manually in this Codex version. Other Codex versions require their own live check.
 
 ## 0.5.0 - 2026-09-27
