@@ -52,7 +52,7 @@ The v0.2.7 ChatGPT adapter passed signed live switching on macOS 26.5.1 with Cha
 
 The v0.4.4 candidate passed signed live switching on macOS 26.5.1 with ChatGPT 26.908.70816, including already-applied, Light, and High outcomes through the current task composer. These checks ran on Apple silicon; the published notarized artifact still requires fresh-download verification before this release claim is complete.
 
-ChatGPT models currently recognized by source: 6 Astra, 6 Sol, 5.6 Sol, 5.6 Terra, 5.6 Luna, 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark. GPT-6 Sol is offered in Work and Codex when the account and workspace have access; ordinary Chat conversations do not offer it.
+ChatGPT model choices: 6.1 Sol, 6.1 Terra, 6 Astra, 6 Sol, 6 Luna, 5.6 Sol, 5.6 Terra, and 5.6 Luna. These match the explicit model choices in the current desktop picker; ReasonDeck does not assign ChatGPT's automatic Default mode.
 
 Claude Desktop models currently recognized by source: Fable 5.2, Fable 5.1, Fable 5, Opus 5.5, Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 5.5, Sonnet 5, Sonnet 4.6, Haiku 5.5, and Haiku 4.5. Shortcuts work only while the session's current model is one of these, so a model Claude adds later needs a ReasonDeck update. Claude's Ultracode effort is not selectable yet.
 
@@ -71,7 +71,7 @@ Antigravity efforts currently recognized by source: High, Medium, Low, None, (Th
 - The English Antigravity Mac app (`com.google.antigravity`)
 - Accessibility and Input Monitoring permission
 
-ChatGPT support requires one visible composer with an unambiguous model control. Current task composers support the compact model list, the expanded inline model list, and the model-and-effort Power popover, including when a picker is already open. ReasonDeck reads the exact model and effort, selects a named model row, and adjusts the named Power control only after verifying focus and each announced change. Power labels **Standard** and **Extended** correspond to **Medium** and **High**. Older native pickers with separate Model/Effort rows still use **Select model** (`⌃⇧M`). Ambiguous multi-composer, preview, and sidebar-only surfaces remain unsupported.
+ChatGPT support requires one visible composer with an unambiguous model control. Current task composers support a model popup directly beside the message field or beneath one shared-parent wrapper, the compact model list, the expanded inline model list, and the model-and-effort Power popover, including when a picker is already open. ReasonDeck reads the exact model and effort, selects a named model row, and adjusts the named Power control only after verifying focus and each announced change. Power labels **Standard** and **Extended** correspond to **Medium** and **High**. Older native pickers with separate Model/Effort rows still use **Select model** (`⌃⇧M`). Ambiguous multi-composer, preview, and sidebar-only surfaces remain unsupported.
 
 Known limitation: Codex app 26.924.22138 on macOS 26.5.1 visually offers GPT-6 Sol, but its composer and picker controls were absent from ReasonDeck's Accessibility view in a signed live check. ReasonDeck received repeated shortcut presses, then failed closed without changing the model; reinstalling it or repeating the shortcut does not address this observed picker failure. Settings shows **Needs update** after that failure for the running Codex process. Select the model manually until Codex exposes controls that ReasonDeck can verify; this observation does not classify other Codex versions.
 
@@ -98,10 +98,10 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 ## Troubleshooting
 
 - **Permissions are required:** Use the matching **Allow** action in ReasonDeck Settings, enable the installed app in System Settings, then return to ReasonDeck.
-- **ChatGPT reports that the picker was not found:** Leave one composer visible in the active window. Older ReasonDeck builds do not recognize GPT-6 Astra or the current task-composer Power and inline-picker layouts.
+- **ChatGPT reports that the picker was not found:** Leave the intended message field visible in the active window. If permissions are ready and the failure persists, follow [Diagnose ChatGPT shortcuts](#diagnose-chatgpt-shortcuts) before resetting permissions. A changed control label or composer layout can produce this failure even when the shortcut opens a panel.
 - **Hotkeys do not respond:** Confirm ReasonDeck appears and is enabled in **System Settings > Privacy & Security > Input Monitoring**. Use **Allow Input Monitoring…** in ReasonDeck if the list has no ReasonDeck entry, then choose **Quit & Reopen** when macOS asks.
 - **A Codex shortcut is captured but does not switch models:** Check the known Codex version limitation above. A **Needs update** result after the picker failure indicates that ReasonDeck could not verify Codex's controls. When permissions show Ready, repeating the shortcut or resetting permissions is not a remedy for this tested failure. Select the model manually for that version.
-- **Permissions show Required although the System Settings toggle is on:** The toggle belongs to an earlier copy. macOS files each grant against the app's code signature, not its name, so a differently signed build is a different app to it: the old row keeps showing on while the running copy is denied. Turning that row off and on again does not repair it. Remove ReasonDeck from the **Accessibility** and **Input Monitoring** lists with `−`, then allow it again. For Input Monitoring, which applies only to a fresh launch, use **Quit & Reopen** afterwards. Settings says this on each permission that is still Required, and states it outright when it can see that the signature changed since you allowed that permission. Signing every build with the same stable team keeps this from recurring.
+- **Permissions show Required although the System Settings toggle is on:** First verify the running copy and signing requirement as described below. A toggle can belong to an earlier signing identity: macOS matches each grant against the app's designated code requirement, not its name. When the installed copy is still denied, remove its stale entry from the affected **Accessibility** or **Input Monitoring** list with `−`, then allow `/Applications/ReasonDeck.app` again. Use **Quit & Reopen** after changing Input Monitoring. ReasonDeck can identify a changed requirement when it previously recorded that grant; a toggle alone does not prove the cause. Keep the exact signing identity stable with `scripts/dev.sh`.
 - **The menu bar icon is missing:** Launch ReasonDeck again from Applications to open Settings. When Settings says the icon is outside the usable status strip, free menu bar space or use an overflow manager, then relaunch ReasonDeck so macOS can place it again.
 - **Only the model changes:** The requested effort was unavailable or could not be verified. ReasonDeck reports a partial result instead of rolling the model back.
 - **Claude Desktop's controls cannot be found:** Select Chat or Cowork and leave its composer visible. For Code, leave the idle Prompt composer and its model control visible. Claude Desktop 6 needs ReasonDeck's combined-picker support; earlier ReasonDeck builds cannot find Code's controls there.
@@ -113,6 +113,64 @@ The switching design is documented in [ADR-001](ADR-001-accessibility-automation
 - **A shortcut lost one of its apps after an update:** That app's saved model or effort was retired. ReasonDeck keeps every shortcut it can still run and removes only the parts it cannot, so the rest of the shortcut is untouched and nothing is substituted. Re-enable the app in Settings to pick a current model.
 - **Saved shortcuts are invalid:** The saved data is not a readable configuration, or it was written by a newer ReasonDeck. Open Settings and choose **Reset to Empty**; switching stays disabled until you do.
 
+### Diagnose ChatGPT shortcuts
+
+For maintainers investigating a regression. Start here before changing permissions or picker actions. The [October 2026 findings in ADR-001](ADR-001-accessibility-automation.md#october-2026-regression-findings) preserve the failure that led to this order and the limits of the successful check.
+
+#### 1. Identify the running build
+
+Open ReasonDeck Settings and check permission readiness, the shortcut chord, its enabled ChatGPT assignment, and its requested model and effort. Record the target app version shown under **App Compatibility**, macOS version, and ReasonDeck version/build. Compare the exact target version on every attempt: the target app updated during the October investigation. The ChatGPT adapter currently targets bundle `com.openai.codex`; use the captured target/version rather than inferring identity from the app's display name.
+
+From the checkout being investigated, record the commit and running executable:
+
+```sh
+git rev-parse HEAD
+ps -axo pid=,comm= | rg '(^|/)ReasonDeck$'
+codesign -d -r- /Applications/ReasonDeck.app 2>&1
+```
+
+Expect the running executable to be `/Applications/ReasonDeck.app/Contents/MacOS/ReasonDeck`. Replacing the bundle on disk does not update an already running process. A preview copy or a build-directory process can leave Settings and shortcuts serving old code. Several local candidates can share a version/build, so retain the source commit and the launch performed by [scripts/dev.sh](scripts/dev.sh), too. Use [Build from source](#build-from-source) for updates; do not repeatedly delete the app or its saved configuration.
+
+#### 2. Capture one attempt live
+
+After a failure, **Copy Failure Details** in the ReasonDeck menu supplies versions and a typed failure code. For the full attempt sequence, start this in Terminal **before** pressing the shortcut:
+
+```sh
+reasondeck_log=$(mktemp /private/tmp/reasondeck-shortcut.XXXXXX)
+printf 'Capture file: %s\n' "$reasondeck_log"
+/usr/bin/log stream --level info --style compact \
+  --predicate 'subsystem == "com.thierryai.ReasonDeck"' \
+  | tee "$reasondeck_log"
+```
+
+Bring the intended ChatGPT window forward, close its picker, click its message field, and press one shortcut once. Keep that window frontmost until its `phase=completed` event appears, then stop the Terminal capture with Control-C. Repeated presses during a transaction produce `busy` and obscure the first failure. Save the capture file with the issue; temporary files and historical info-level logs are not durable evidence. If the Terminal command is denied, use an authorized Terminal session or the copied failure report and state the diagnostic limit.
+
+Correlate events by `attempt`, the attempt identifier. `request=none` on `captured` or `dispatched` is normal; the completed event carries the requested assignment. Interpret the result before choosing a repair:
+
+| Observation | First check |
+| --- | --- |
+| No `captured` event | Running executable, enabled assignment, exact chord, frontmost target, and Input Monitoring readiness. `Hotkey event tap enabled` alone does not prove keyboard events arrive. |
+| `captured` and `dispatched`, then `picker_not_found`, even if a panel opens | Composer discovery and exact recognized labels. Permission repair does not correct a changed control layout. |
+| `permission_missing` or Settings still shows Required | The affected permission and designated signing requirement. Repair only the refused grant, then relaunch when required. |
+| `target_changed` or `no_focused_window` | Keep the captured app/window active. Preserve the identity checks. |
+| `partialFailure`, `effort_row_not_actionable`, or `verification_mismatch` | The owned Power control, focus, announced model/effort/bounds, and final read-back. |
+
+`outcome=success` or `alreadyApplied` verifies the selection. Composer-focus restoration is best-effort and does not change that outcome; inspect its separate errors and check that the caret returns to the message field.
+
+#### 3. Investigate the failed control contract
+
+Start at [SystemAccessibilityClient.apply](Sources/SystemAccessibilityClient.swift) and [ChatGPTModernPlanner.composer](Sources/ChatGPTSurface.swift). Accessibility (AX) is macOS's interface for reading and operating app controls. A screenshot proves a control is visible; it does not prove the AX tree exposes an actionable control or its ownership.
+
+If a temporary diagnostic build is necessary, collect only roles, visibility, actions, parent relationships, counts, and recognized closed model/effort tokens. Never log message-field values, transcript text, or arbitrary unrecognized labels. Inspect the input's own branch: a second text area elsewhere does not by itself make the composer ambiguous. Check the named Power control only after composer discovery succeeds. The `AXManualAccessibility`/`AXEnhancedUserInterface` preparation errors seen in October also occurred during successful switches; those errors alone do not establish that the tree is empty.
+
+Model choices come from `ChatGPTModel` in [Domain.swift](Sources/Domain.swift); [SettingsView.swift](Sources/SettingsView.swift) uses that same set. A new model may need recognition in both the closed composer label and Power status. Do not accept arbitrary labels or replace a retired assignment with a different model. [ProfileStoreTests.swift](Tests/ProfileStoreTests.swift) protects recovery of unrelated saved assignments.
+
+#### 4. Verify the repair through the installed app
+
+Reduce the observed structure to a failing test in [ChatGPTSurfaceTests.swift](Tests/ChatGPTSurfaceTests.swift), including unrelated and ambiguous controls. The wrapped-composer regression can be run with `swift test --filter chatGPTModernComposer`. Then use `scripts/dev.sh` for the complete test suite, signed Release build, installation, and relaunch. Remove temporary diagnostic probes before the final build.
+
+Test real configured shortcuts with the target frontmost. Confirm both the visible result and matching completed events with `failure=none`; wait for each attempt to finish. The October live baseline was GPT-6.1 Sol, Command-Shift-1 → Extra High, then Command-Shift-2 → Light. If model selection changed, test a model transition as well. Record exact versions, source commit, signing identity, and the cases actually exercised in ADR-001. These checks do not certify every model, another architecture, or a published download; [release checks](docs/RELEASING.md#4-perform-live-release-checks) retain their own scope.
+
 ## Build from source
 
 Building requires Xcode with the macOS SDK.
@@ -123,7 +181,15 @@ cd ReasonDeck
 cp Config/Local.xcconfig.example Config/Local.xcconfig
 ```
 
-Set `DEVELOPMENT_TEAM` in `Config/Local.xcconfig`, then run:
+Set `DEVELOPMENT_TEAM` and `CODE_SIGN_IDENTITY` in `Config/Local.xcconfig` to the team and exact Apple Development identity used by the installed copy. Run `security find-identity -v -p codesigning` to list your available identities. Then each update is one command:
+
+```sh
+scripts/dev.sh
+```
+
+It runs tests, builds a signed Release, verifies that its signing requirement matches the installed app, replaces `/Applications/ReasonDeck.app`, and relaunches that exact copy. Saved shortcuts and matching macOS permission grants are retained. A changed certificate or bundle identity stops the update before the running app is touched. Switching from a public Developer ID build to an Apple Development build still requires a one-time permission repair.
+
+To build without installing or relaunching:
 
 ```sh
 swift test
@@ -133,7 +199,6 @@ xcodebuild \
   -configuration Release \
   -derivedDataPath build \
   build
-open build/Build/Products/Release/ReasonDeck.app
 ```
 
 Keep the tracked bundle identifier unless you intentionally want a separate development identity and separate macOS privacy grants. Use a consistently signed Release build for live permission testing; the SwiftPM debug executable is not a supported live app identity. Set `DEVELOPMENT_TEAM` in `Config/Local.xcconfig` so Xcode signs with an Apple Development certificate; an ad-hoc build (`CODE_SIGN_IDENTITY = -`) is identified only by its binary hash, so macOS drops its Accessibility and Input Monitoring grants on every rebuild.

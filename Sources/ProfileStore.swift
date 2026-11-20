@@ -44,8 +44,21 @@ struct LegacyShortcutEntry: Codable, Hashable, Sendable {
 struct LegacyShortcutConfiguration: Codable, Sendable {
     let entries: [LegacyShortcutEntry]
 
-    func migrated() throws -> ShortcutConfiguration {
-        try ShortcutConfiguration(entries: entries.map { entry in
+    init(entries: [LegacyShortcutEntry]) {
+        self.entries = entries
+    }
+
+    private enum CodingKeys: String, CodingKey { case entries }
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Old files need the same per-entry recovery when a model is retired.
+        entries = try container.decode([RecoverableElement<LegacyShortcutEntry>].self, forKey: .entries)
+            .compactMap(\.value)
+    }
+
+    func migrated() -> ShortcutConfiguration {
+        ShortcutConfiguration.recovered(from: entries.map { entry in
             ShortcutEntry(
                 id: entry.id,
                 shortcut: entry.shortcut,
@@ -347,7 +360,7 @@ final class ProfileStore {
         }
         do {
             let legacy = try JSONDecoder().decode(LegacyShortcutConfiguration.self, from: data)
-            let migrated = try legacy.migrated()
+            let migrated = legacy.migrated()
             let encoded = try JSONEncoder().encode(StoredShortcutConfiguration(configuration: migrated))
             defaults.set(encoded, forKey: Self.storageKey)
             defaults.removeObject(forKey: Self.supersededStorageKey)

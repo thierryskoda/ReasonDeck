@@ -356,14 +356,19 @@ struct ChatGPTPowerPicker: Equatable, Sendable {
 }
 
 enum ChatGPTModernPlanner {
-    /// The observed modern composer has a text area and popup as direct siblings.
-    /// Do not widen this to a common window ancestor: transcript buttons also name models.
+    /// The popup shares the input's parent, directly or through one visible wrapper.
+    /// Keep this local to that input branch: transcript buttons also name models.
     static func composer(in snapshot: ChatGPTAXSnapshot) throws -> ChatGPTModernComposer {
         var matches: [ChatGPTModernComposer] = []
+        let index = snapshot.byID
         for input in snapshot.nodes where input.visible && input.role == "AXTextArea" {
             guard let parent = input.parentID else { continue }
-            for control in snapshot.nodes where control.visible && control.parentID == parent
+            for control in snapshot.nodes where control.visible
                 && control.role == "AXPopUpButton" && control.actions.contains(.press) {
+                let wrapper = control.parentID.flatMap { index[$0] }
+                let belongsToInput = control.parentID == parent
+                    || (wrapper?.visible == true && wrapper?.parentID == parent && wrapper?.id != input.id)
+                guard belongsToInput else { continue }
                 let models = control.labels.compactMap { if case .model(let m) = $0 { return m }; return nil }
                 let efforts = control.labels.compactMap { if case .effort(let e) = $0 { return e }; return nil }
                 let selection: ChatGPTSelection?

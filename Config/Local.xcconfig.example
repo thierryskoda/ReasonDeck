@@ -3,6 +3,11 @@
 // free Apple Development certificate once you sign in under Xcode > Settings > Accounts.
 DEVELOPMENT_TEAM = YOUR_TEAM_ID
 
+// Pin the same certificate used by your installed development build. scripts/dev.sh
+// refuses to replace it if this changes the designated signing requirement.
+CODE_SIGN_STYLE = Manual
+CODE_SIGN_IDENTITY = Apple Development: Your Name (CERTIFICATE_ID)
+
 // Do not fall back to ad-hoc signing (CODE_SIGN_IDENTITY = -) for builds you grant
 // permissions to. An ad-hoc build is identified only by its binary hash, so macOS
 // treats every rebuild as a new app and silently drops Accessibility and Input

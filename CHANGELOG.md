@@ -10,6 +10,10 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 - Stop Claude Desktop shortcuts from failing in some sessions and working in others: ReasonDeck could skip parts of Claude's window while looking for the composer.
 - Allow switching away from a model chosen under **More models**.
 - Recognize every model Claude Desktop 6 offers, including Fable 5.2, Sonnet 5.5, Haiku 5.5, and the older models under **More models**, so shortcuts keep working whichever one is current.
+- Recognize ChatGPT’s model-and-effort popup inside its current composer wrapper, without treating another text area in the window as its owner.
+- Add `scripts/dev.sh` for local test, signed build, update, and relaunch with a check that prevents changing the installed app's signing requirement and invalidating its permission grants.
+- Recognize GPT-6.1 Sol, GPT-6.1 Terra, and GPT-6 Luna in ChatGPT's composer, model list, and reasoning Power control. Previously, selecting one of these models manually prevented ReasonDeck from recognizing the composer, including shortcuts that targeted an older model.
+- Refresh ChatGPT's Settings choices to the current eight explicit models, removing 5.5, 5.4, 5.4 Mini, and 5.3 Codex Spark. Saved assignments to those removed models are dropped without substituting a different model; other app assignments on the same shortcut remain.
 
 ### Changed
 
@@ -18,6 +22,7 @@ Notable user-facing changes are recorded here. Release artifacts and tags are im
 ### Safety
 
 - Claude's opened picker is still identified by its exact title and exact row labels, including the exact account-access badge Claude appends to some models. An unrecognized badge or model disables switching instead of matching by prefix.
+- Live Accessibility compatibility with ChatGPT 26.1013.40934 remains unverified; a signed live check is still required.
 - Codex 26.924.22138 on macOS 26.5.1 shows GPT-6 Sol in its visible picker, but a signed live check found that ReasonDeck could not access the composer or picker through macOS Accessibility. Version 0.5.0 receives the shortcuts and then fails closed without changing the model; select it manually in this Codex version. Other Codex versions require their own live check.
 
 ## 0.5.0 - 2026-09-27

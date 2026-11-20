@@ -142,6 +142,30 @@ private func isolatedDefaults() -> UserDefaults {
 }
 
 @MainActor
+@Test(arguments: ["5.5", "5.4", "5.4 Mini", "5.3 Codex Spark"])
+func aRetiredLegacyModelPreservesSupportedNeighbors(_ model: String) throws {
+    let defaults = unconfiguredDefaults()
+    let payload = """
+    {"entries":[
+     {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
+      "selection":{"model":"\(model)","effort":"High"}},
+     {"id":"72413D4A-2083-4902-A6BB-E109C02E9D66",
+      "selection":{"model":"5.6 Sol","effort":"High"}}
+    ]}
+    """
+    defaults.set(Data(payload.utf8), forKey: ProfileStore.legacyStorageKey)
+
+    let store = ProfileStore(defaults: defaults)
+
+    #expect(store.isValid)
+    let entry = try #require(store.entries.first)
+    #expect(store.entries.count == 1)
+    #expect(entry.chatGPT == ChatGPTSelection(model: .sol56, effort: .high))
+    #expect(defaults.object(forKey: ProfileStore.legacyStorageKey) == nil)
+    #expect(ProfileStore(defaults: defaults).entries == store.entries)
+}
+
+@MainActor
 @Test func independentCursorAssignmentSurvivesRelaunch() throws {
     let defaults = isolatedDefaults()
     let store = ProfileStore(defaults: defaults)
@@ -317,13 +341,14 @@ private let supersededPayloadWithRetiredFeature = """
 }
 
 @MainActor
-@Test func aRetiredModelRemovesOnlyThatAppFromTheShortcut() throws {
+@Test(arguments: ["A Model ReasonDeck Retired", "5.5", "5.4", "5.4 Mini", "5.3 Codex Spark"])
+func aRetiredModelRemovesOnlyThatAppFromTheShortcut(_ model: String) throws {
     let defaults = unconfiguredDefaults()
     let payload = """
     {"configuration":{"entries":[
      {"id":"68EBCE6E-00D7-46C9-A1E3-0023955AE256",
       "shortcut":{"keyCode":18,"keyLabel":"1","modifiers":9},
-      "chatGPT":{"model":"A Model ReasonDeck Retired","effort":"High"},
+      "chatGPT":{"model":"\(model)","effort":"High"},
       "claudeCode":{"model":"Sonnet 5","effort":"High"}}
     ]},"version":3}
     """
