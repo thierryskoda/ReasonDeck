@@ -52,13 +52,13 @@ The v0.2.7 ChatGPT adapter passed signed live switching on macOS 26.5.1 with Cha
 
 The v0.4.4 candidate passed signed live switching on macOS 26.5.1 with ChatGPT 26.908.70816, including already-applied, Light, and High outcomes through the current task composer. These checks ran on Apple silicon; the published notarized artifact still requires fresh-download verification before this release claim is complete.
 
-ChatGPT model choices: 6.1 Sol, 6.1 Terra, 6 Astra, 6 Sol, 6 Luna, 5.6 Sol, 5.6 Terra, and 5.6 Luna. These match the explicit model choices in the current desktop picker; ReasonDeck does not assign ChatGPT's automatic Default mode.
+ChatGPT model choices: 6.2 Sol, 6.2 Astra, 6.1 Sol, 6.1 Terra, 6 Astra, 6 Sol, 6 Luna, 5.6 Sol, 5.6 Terra, and 5.6 Luna. These match the explicit model choices in the current desktop picker; ReasonDeck does not assign ChatGPT's automatic Default mode.
 
 Claude Desktop models currently recognized by source: Fable 5.2, Fable 5.1, Fable 5, Opus 5.5, Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 5.5, Sonnet 5, Sonnet 4.6, Haiku 5.5, and Haiku 4.5. Shortcuts work only while the session's current model is one of these, so a model Claude adds later needs a ReasonDeck update. Claude's Ultracode effort is not selectable yet.
 
 ChatGPT efforts currently recognized by source, shown from lowest to highest in Settings: None, Light, Medium, High, Extra High, Max, and Ultra.
 
-Antigravity models currently recognized by source: Gemini 3.8 Flash, Gemini 3.7 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonnet 4.6, Claude Opus 4.6, and GPT-OSS 120B. ReasonDeck matches the exact combined model-and-effort row currently exposed by Antigravity; it does not treat another effort for the same model as success.
+Antigravity models currently recognized by source: Gemini 4 Neon, Gemini 4 Carbon, Gemini 4 Argon, Gemini 4 Hydrogen, Claude Opus 5.5, Claude Sonnet 5.5, Gemini 3.8 Flash, Gemini 3.7 Flash, Gemini 3.6 Flash, Gemini 3.5 Flash, Gemini 3.1 Pro, Claude Sonnet 4.6, Claude Opus 4.6, and GPT-OSS 120B. ReasonDeck matches the exact combined model-and-effort row currently exposed by Antigravity; it does not treat another effort for the same model as success.
 
 Antigravity efforts currently recognized by source: High, Medium, Low, None, (Thinking), and (Medium). The exact `Fast` badge on current Medium Flash rows is treated as row presentation and is not exposed as a separate reasoning effort; the reopened picker's canonical current title must still verify Medium.
 

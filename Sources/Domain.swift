@@ -2,6 +2,8 @@ import Foundation
 
 enum ChatGPTModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
     // Current model labels also identify the composer, even when a shortcut targets another model.
+    case sol62 = "6.2 Sol"
+    case astra62 = "6.2 Astra"
     case sol61 = "6.1 Sol"
     case terra61 = "6.1 Terra"
     case astra6 = "6 Astra"
@@ -296,6 +298,12 @@ struct CursorSelection: Codable, Hashable, Sendable, Identifiable {
 
 
 enum AntigravityModel: String, CaseIterable, Codable, Hashable, Sendable, Identifiable {
+    case gemini4Neon = "Gemini 4 Neon"
+    case gemini4Carbon = "Gemini 4 Carbon"
+    case gemini4Argon = "Gemini 4 Argon"
+    case gemini4Hydrogen = "Gemini 4 Hydrogen"
+    case claudeOpus55 = "Claude Opus 5.5"
+    case claudeSonnet55 = "Claude Sonnet 5.5"
     case gemini38Flash = "Gemini 3.8 Flash"
     case gemini37Flash = "Gemini 3.7 Flash"
     case gemini36Flash = "Gemini 3.6 Flash"

@@ -7,7 +7,7 @@ import Testing
 }
 
 @Test func supportedLabelsHaveOneTypedSourceOfTruth() {
-    #expect(ChatGPTModel.allCases.map(\.rawValue) == ["6.1 Sol", "6.1 Terra", "6 Astra", "6 Sol", "6 Luna", "5.6 Sol", "5.6 Terra", "5.6 Luna"])
+    #expect(ChatGPTModel.allCases.map(\.rawValue) == ["6.2 Sol", "6.2 Astra", "6.1 Sol", "6.1 Terra", "6 Astra", "6 Sol", "6 Luna", "5.6 Sol", "5.6 Terra", "5.6 Luna"])
     #expect(ChatGPTReasoningEffort.allCases.map(\.rawValue) == ["Extra High", "Medium", "None", "Light", "Ultra", "High", "Max"])
     #expect(ClaudeCodeModel.allCases.map(\.rawValue) == [
         "Fable 5.2", "Fable 5.1", "Fable 5", "Opus 5.5", "Opus 5", "Opus 4.8", "Opus 4.7", "Opus 4.6",
@@ -21,6 +21,8 @@ import Testing
     ])
     #expect(CursorEffort.allCases.map(\.rawValue) == ["Low", "Medium", "None", "High"])
     #expect(AntigravityModel.allCases.map(\.rawValue) == [
+        "Gemini 4 Neon", "Gemini 4 Carbon", "Gemini 4 Argon", "Gemini 4 Hydrogen",
+        "Claude Opus 5.5", "Claude Sonnet 5.5",
         "Gemini 3.8 Flash", "Gemini 3.7 Flash", "Gemini 3.6 Flash", "Gemini 3.5 Flash", "Gemini 3.1 Pro",
         "Claude Sonnet 4.6", "Claude Opus 4.6", "GPT-OSS 120B"
     ])
@@ -356,4 +358,22 @@ import Testing
 
     #expect(AXWindowIdentity.correlatedWindowID(pid: 42, focusedAXFrame: frame, candidates: duplicateMatches) == nil)
     #expect(AXWindowIdentity.correlatedWindowID(pid: 42, focusedAXFrame: frame, candidates: drifted) == nil)
+}
+
+@Test func antigravityPickerAcceptsLiveBadgedRowsAndCurrentTitle() {
+    #expect(AntigravityPickerState.selection(
+        fromCurrentTitle: "Select model, current: Gemini 4 Carbon Medium"
+    ) == AntigravitySelection(model: .gemini4Carbon, effort: .medium))
+    for (row, model) in [
+        ("Gemini 4 Neon Medium New", AntigravityModel.gemini4Neon),
+        ("Gemini 4 Hydrogen Medium", .gemini4Hydrogen),
+        ("Claude Opus 5.5 Medium New", .claudeOpus55),
+        ("Claude Sonnet 5.5 Medium New", .claudeSonnet55),
+    ] {
+        #expect(AntigravityPickerState.selection(fromMenuItemTitle: row)
+            == AntigravitySelection(model: model, effort: .medium))
+    }
+    #expect(AntigravityPickerState.selection(fromMenuItemTitle: "GPT-OSS 120B (Medium) Notice")
+        == AntigravitySelection(model: .gptOSS120B, effort: .mediumParen))
+    #expect(AntigravityPickerState.selection(fromMenuItemTitle: "Gemini 4 Neon Medium Preview") == nil)
 }

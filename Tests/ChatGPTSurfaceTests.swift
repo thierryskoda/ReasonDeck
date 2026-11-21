@@ -229,7 +229,7 @@ private func modernChatSnapshot(open: Bool = false, power: Bool = false) -> Chat
     #expect(ChatGPTControlLabels.classify("GPT-6 Sol Preview High") == [.unknownText])
 }
 
-@Test(arguments: ["6.1 Sol", "6.1 Terra", "6 Luna"])
+@Test(arguments: ["6.2 Sol", "6.2 Astra", "6.1 Sol", "6.1 Terra", "6 Luna"])
 func chatGPTCurrentModelsResolveAcrossComposerListAndPower(_ label: String) throws {
     let model = try #require(ChatGPTModel(rawValue: label))
     let selection = ChatGPTSelection(model: model, effort: .extraHigh)

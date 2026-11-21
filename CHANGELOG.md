@@ -2,6 +2,17 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Fixed
+
+- Recognize GPT-6.2 Sol and GPT-6.2 Astra in ChatGPT. Previously, selecting either one manually kept ReasonDeck from recognizing the composer.
+- Recognize Gemini 4 Neon, Carbon, Argon, and Hydrogen, Claude Opus 5.5, and Claude Sonnet 5.5 in Antigravity, including the `New` and `Notice` badges on their picker rows. Antigravity's Orchestrator rows have no effort and are not supported yet.
+
+### Safety
+
+- The new Antigravity models switch only to the effort their picker row already shows; other efforts fail closed until their effort submenu is verified live.
+
 ## 0.5.3 - 2026-11-21
 
 ### Fixed

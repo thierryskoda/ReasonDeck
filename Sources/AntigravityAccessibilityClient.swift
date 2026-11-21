@@ -12,8 +12,13 @@ enum AntigravityPickerPlan: Equatable, Sendable {
 
 enum AntigravityPickerState {
     static let currentTitlePrefix = "Select model, current: "
-    private static let fastBadgeModels: Set<AntigravityModel> = [
-        .gemini38Flash, .gemini37Flash, .gemini36Flash,
+    // Presentation badges Antigravity appends to a picker row but not to its authoritative
+    // current-selection title. Both forms stay accepted because badges such as `New` expire.
+    private static let rowBadges: [AntigravityModel: [String]] = [
+        .gemini4Neon: ["New"], .gemini4Carbon: ["New"], .gemini4Argon: ["New"], .gemini4Hydrogen: ["New"],
+        .claudeOpus55: ["New"], .claudeSonnet55: ["New"],
+        .gemini38Flash: ["Fast"], .gemini37Flash: ["Fast"], .gemini36Flash: ["Fast"],
+        .gptOSS120B: ["Notice"],
     ]
     private static let submenuEffortModels: Set<AntigravityModel> = [
         .gemini38Flash, .gemini37Flash, .gemini36Flash, .gemini35Flash, .gemini31Pro,
@@ -102,14 +107,10 @@ enum AntigravityPickerState {
         return nil
     }
 
-    /// Antigravity appends an exact `Fast` badge to Flash rows,
-    /// while its authoritative current-selection title omits that presentation badge.
     static func acceptedMenuItemTitles(for selection: AntigravitySelection) -> Set<String> {
         let canonical = menuItemTitle(for: selection)
-        guard fastBadgeModels.contains(selection.model) else {
-            return [canonical]
-        }
-        return [canonical, "\(canonical) Fast"]
+        let badges = rowBadges[selection.model] ?? []
+        return Set([canonical] + badges.map { "\(canonical) \($0)" })
     }
 }
 
