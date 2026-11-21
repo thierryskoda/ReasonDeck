@@ -48,21 +48,29 @@ enum ClaudePickerLabels {
         return rows
     }()
 
-    private static let pickerEfforts: [(label: String, effort: ClaudeCodeEffort)] = [
-        ("Low", .low),
-        ("Medium", .medium),
-        ("Medium Default", .medium),
-        // 6.6395.0 tags the suggested effort; only this form has been live-read.
-        ("Medium Recommended", .medium),
-        ("High", .high),
-        ("High Default", .high),
-        ("Extra", .extraHigh),
-        // Claude sometimes appends cohort-specific usage copy to Max. Keep each
-        // observed full label allowlisted instead of weakening this to prefix matching.
-        ("Max", .max),
-        ("Max 2.5× or more usage", .max),
-        ("Max 3.5× or more usage", .max),
-    ]
+    private static let pickerEfforts: [(label: String, effort: ClaudeCodeEffort)] = {
+        // 6.28899.2 tags whichever effort it recommends for the current model
+        // with "Recommended" — High for Sonnet 5, Medium for Fable 5.2 — so
+        // every effort needs that exact suffixed form, not only Medium.
+        let base: [(label: String, effort: ClaudeCodeEffort)] = [
+            ("Low", .low),
+            ("Medium", .medium),
+            ("Medium Default", .medium),
+            ("High", .high),
+            ("High Default", .high),
+            ("Extra", .extraHigh),
+            // Claude sometimes appends cohort-specific usage copy to Max. Keep each
+            // observed full label allowlisted instead of weakening this to prefix matching.
+            ("Max", .max),
+            ("Max 2.5× or more usage", .max),
+            ("Max 3.5× or more usage", .max),
+        ]
+        let recommended = Set(["Low", "Medium", "High", "Extra", "Max"])
+            .map { label -> (label: String, effort: ClaudeCodeEffort) in
+                (label: "\(label) Recommended", effort: base.first(where: { $0.label == label })!.effort)
+            }
+        return base + recommended
+    }()
 
     static func selection(inComposerTitle title: String) -> ClaudeCodeSelection? {
         for model in ClaudeCodeModel.allCases {

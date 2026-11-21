@@ -233,6 +233,7 @@ private let claudeInvocation = HotkeyInvocation(
 @Test func claudeMaxEffortAcceptsOnlyKnownExactRowVariants() {
     let expectedLabels: Set<String> = [
         "Max",
+        "Max Recommended",
         "Max 2.5× or more usage",
         "Max 3.5× or more usage",
     ]
@@ -385,9 +386,14 @@ private let claudeInvocation = HotkeyInvocation(
     #expect(ClaudePickerLabels.model(inPickerRow: "Effort Medium") == nil)
 }
 
-@Test func claudeDesktop6EffortMenuAcceptsTheRecommendedTagAndLeavesUltracodeUnavailable() {
+@Test func claudeDesktop6EffortMenuAcceptsTheRecommendedTagOnAnyEffortAndLeavesUltracodeUnavailable() {
+    // Claude tags whichever effort it recommends for the current model, not
+    // always Medium: Sonnet 5 recommends High, Fable 5.2 recommends Medium.
     #expect(ClaudePickerLabels.effort(inPickerRow: "Medium Recommended") == .medium)
-    #expect(ClaudePickerLabels.effort(inPickerRow: "High Recommended") == nil)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "High Recommended") == .high)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Low Recommended") == .low)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Extra Recommended") == .extraHigh)
+    #expect(ClaudePickerLabels.effort(inPickerRow: "Max Recommended") == .max)
     #expect(ClaudePickerLabels.effort(inPickerRow: "Ultracode") == nil)
     #expect(ClaudePickerLabels.effortMenuTitles == [
         "Effort Low", "Effort Medium", "Effort High", "Effort Extra", "Effort Max",
