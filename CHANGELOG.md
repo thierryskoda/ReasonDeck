@@ -2,6 +2,12 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## 0.5.2 - 2026-11-21
+
+### Fixed
+
+- Recognize Claude's Recommended tag on every effort, not only Medium
+
 ## 0.5.1 - 2026-11-21
 
 ### Fixed
