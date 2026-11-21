@@ -548,7 +548,11 @@ actor CursorSwitchCoordinator: CursorApplying {
     }
 }
 
-struct CursorAXIdentityRegistry<Element> {
+// Exact element identity for Accessibility scans, shared by the Cursor and
+// ChatGPT adapters. CFHash(AXUIElement) alone is not an identity: distinct
+// Chromium elements share hashes, so a bare hash-keyed visited set silently
+// drops whole subtrees. Bucket by hash, then confirm with CFEqual.
+struct AXIdentityRegistry<Element> {
     struct Insertion {
         let id: Int
         let isNew: Bool
@@ -584,6 +588,12 @@ struct CursorAXIdentityRegistry<Element> {
         nextID += 1
         buckets[hashValue, default: []].append(Entry(element: element, id: id))
         return Insertion(id: id, isNew: true)
+    }
+}
+
+extension AXIdentityRegistry where Element == AXUIElement {
+    static func accessibility() -> Self {
+        Self(hash: { Int(bitPattern: CFHash($0)) }, equal: { CFEqual($0, $1) })
     }
 }
 
@@ -1134,10 +1144,7 @@ actor SystemCursorUIClient: CursorUIClient {
     private func rawNodes(root: AXUIElement, maxDepth: Int, maxNodes: Int) -> [RawCursorNode] {
         var queue: [(AXUIElement, Int?, Int)] = [(root, nil, 0)]
         var output: [RawCursorNode] = []
-        var identities = CursorAXIdentityRegistry<AXUIElement>(
-            hash: { Int(CFHash($0)) },
-            equal: { CFEqual($0, $1) }
-        )
+        var identities = AXIdentityRegistry.accessibility()
         var index = 0
         while index < queue.count, output.count < maxNodes {
             let (element, parentID, depth) = queue[index]

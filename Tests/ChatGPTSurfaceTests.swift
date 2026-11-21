@@ -287,3 +287,27 @@ func chatGPTModernComposerFindsTheWrappedPopupInItsOwnInputBranch(open: Bool) th
     let hidden = chatSnapshot(nodes.filter { $0.id != 3 } + [chatNode(3, parent: 1, visible: false)])
     #expect(throws: ChatGPTSurfaceFailure.unsupportedSurface) { try ChatGPTModernPlanner.composer(in: hidden) }
 }
+
+// ChatGPT 26.1117.31558 prints the current model and effort inside the Select
+// model row, so that row carries those labels as well as its own.
+@Test func chatGPTPowerSelectModelRowMayRepeatOnlyTheAnnouncedSelection() throws {
+    func picker(rowLabels: Set<ChatGPTAXLabel>) -> ChatGPTAXSnapshot {
+        let base = modernChatSnapshot(open: true, power: true)
+        return chatSnapshot(base.nodes.filter { $0.id != 13 }
+            + [chatNode(13, parent: 11, role: "AXMenuItem", labels: rowLabels, actions: [.press])])
+    }
+    let current = picker(rowLabels: [.selectModel, .model(.astra6), .effort(.high)])
+    #expect(try ChatGPTModernPlanner.powerPicker(in: current).modelActionID == 13)
+    #expect(try ChatGPTModernPlanner.powerPicker(in: picker(rowLabels: [.selectModel, .model(.astra6)])).modelActionID == 13)
+    // A row naming any other model or effort is not this picker's model action.
+    for labels: Set<ChatGPTAXLabel> in [
+        [.selectModel, .model(.sol56), .effort(.high)],
+        [.selectModel, .model(.astra6), .effort(.medium)],
+        [.selectModel, .power],
+        [.model(.astra6), .effort(.high)],
+    ] {
+        #expect(throws: ChatGPTSurfaceFailure.itemMissing) {
+            try ChatGPTModernPlanner.powerPicker(in: picker(rowLabels: labels))
+        }
+    }
+}

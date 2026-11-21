@@ -395,12 +395,22 @@ enum ChatGPTModernPlanner {
         // The portal owns Power, Select model, the status, and keyboard instructions.
         // Requiring all four prevents a similarly named unrelated menu from authorizing keys.
         let descendants = snapshot.nodes.filter { $0.visible && snapshot.isDescendant($0.id, of: parent) }
-        let modelRows = descendants.filter { $0.role == "AXMenuItem" && $0.labels == [.selectModel] && $0.actions.contains(.press) }
         let statuses = descendants.flatMap { $0.labels.compactMap { if case .powerStatus(let s) = $0 { return s }; return nil } }
-        guard modelRows.count == 1, Set(statuses).count == 1, let status = statuses.first,
+        guard Set(statuses).count == 1, let status = statuses.first,
               descendants.contains(where: { $0.labels.contains(.powerInstructions) }) else {
             throw ChatGPTSurfaceFailure.itemMissing
         }
+        // ChatGPT 26.1117.31558 prints the current model and effort inside the
+        // Select model row, so the row inherits those labels from its text
+        // children. Accept them only when they equal the announced status; any
+        // other extra label still disqualifies the row.
+        let current: Set<ChatGPTAXLabel> = [.model(status.selection.model), .effort(status.selection.effort)]
+        let modelRows = descendants.filter {
+            $0.role == "AXMenuItem" && $0.actions.contains(.press)
+                && $0.labels.contains(.selectModel)
+                && $0.labels.subtracting([.selectModel]).isSubset(of: current)
+        }
+        guard modelRows.count == 1 else { throw ChatGPTSurfaceFailure.itemMissing }
         return .init(rootID: parent, powerID: power.id, modelActionID: modelRows[0].id, status: status)
     }
 

@@ -24,10 +24,20 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
     func apply(_ selection: ChatGPTSelection, invocation: HotkeyInvocation) async -> ChatGPTApplyOutcome {
         composerFocusTarget = await captureComposerFocus(invocation: invocation)
         modernTransaction = false
-        if let context = try? await resolveContext(invocation: invocation) {
-            let snapshot = chatGPTSnapshot(window: context.window)
-            modernTransaction = (try? ChatGPTModernPlanner.composer(in: snapshot.snapshot)) != nil
-        }
+        // The first call for a ChatGPT process re-enables Chromium accessibility,
+        // which rebuilds the web tree. One snapshot taken straight after can miss
+        // the composer and misroute the whole transaction to the legacy picker,
+        // so only that first call waits briefly for the composer to republish.
+        let firstCallForProcess = accessibilityPreparationAttemptedPID != invocation.pid
+        let end = ContinuousClock().now.advanced(by: firstCallForProcess ? .seconds(1) : .zero)
+        repeat {
+            if let context = try? await resolveContext(invocation: invocation) {
+                let snapshot = chatGPTSnapshot(window: context.window)
+                modernTransaction = (try? ChatGPTModernPlanner.composer(in: snapshot.snapshot)) != nil
+            }
+            if modernTransaction || ContinuousClock().now >= end { break }
+            try? await Task.sleep(for: .milliseconds(50))
+        } while true
         let outcome = await ChatGPTTransaction.apply(selection, invocation: invocation, using: self)
         composerFocusTarget = nil
         return outcome
@@ -198,6 +208,12 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         let live = chatGPTSnapshot(window: context.window)
         guard let composer = try? ChatGPTModernPlanner.composer(in: live.snapshot) else { throw SwitchFailure.pickerNotFound }
         return (context, live, composer)
+    }
+
+    /// The verified current selection of the modern composer, read without
+    /// opening a picker. Throws `pickerNotFound` when no modern composer is proven.
+    func observeModernSelection(invocation: HotkeyInvocation) async throws -> ChatGPTSelection {
+        try await modernSelection(invocation: invocation)
     }
 
     private func modernSelection(invocation: HotkeyInvocation) async throws -> ChatGPTSelection {
@@ -393,7 +409,7 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         let clock = ContinuousClock(); let end = clock.now.advanced(by: timeout)
         while clock.now < end {
             let candidates = breadthFirst(root: root, maxDepth: 40, maxNodes: 3_500).filter { element in
-                guard frame(element) != nil, CFHash(element) != excluded.map(CFHash) else { return false }
+                guard frame(element) != nil, excluded.map({ CFEqual(element, $0) }) != true else { return false }
                 let role = string(element, kAXRoleAttribute)
                 let subrole = string(element, kAXSubroleAttribute)
                 guard role == kAXMenuRole as String || subrole?.localizedCaseInsensitiveContains("popover") == true else { return false }
@@ -407,14 +423,14 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
 
     private func uniqueActionable(named name: String, in root: AXUIElement) -> AXUIElement? {
         var candidates: [AXUIElement] = []
-        var seen = Set<CFHashCode>()
+        var seen = AXIdentityRegistry.accessibility()
         for element in breadthFirst(root: root, maxDepth: 12, maxNodes: 1_000) where labels(element).contains(name) {
             var candidate: AXUIElement? = element
             for _ in 0..<12 {
                 guard let current = candidate else { break }
                 if actions(current).contains(kAXPressAction as String),
                    value(current, kAXEnabledAttribute) as Bool? ?? true,
-                   seen.insert(CFHash(current)).inserted {
+                   seen.insert(current).isNew {
                     candidates.append(current)
                     break
                 }
@@ -426,8 +442,8 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
 
     private func owningMenu(of element: AXUIElement) -> AXUIElement? {
         var current: AXUIElement? = element
-        var visited = Set<CFHashCode>()
-        while let value = current, visited.insert(CFHash(value)).inserted {
+        var visited = AXIdentityRegistry.accessibility()
+        while let value = current, visited.insert(value).isNew {
             if string(value, kAXRoleAttribute) == kAXMenuRole as String { return value }
             current = self.value(value, kAXParentAttribute)
         }
@@ -436,9 +452,9 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
 
     private func isDescendant(_ element: AXUIElement, of ancestor: AXUIElement) -> Bool {
         var current: AXUIElement? = element
-        var visited = Set<CFHashCode>()
+        var visited = AXIdentityRegistry.accessibility()
         for _ in 0..<32 {
-            guard let value = current, visited.insert(CFHash(value)).inserted else { return false }
+            guard let value = current, visited.insert(value).isNew else { return false }
             if CFEqual(value, ancestor) { return true }
             current = self.value(value, kAXParentAttribute)
         }
@@ -455,11 +471,14 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
         var queue: [(AXUIElement, Int?, Int)] = [(window, nil, 0)]
         var elements: [Int: AXUIElement] = [:]
         var nodes: [ChatGPTAXNode] = []
-        var visited = Set<CFHashCode>()
+        // Children and contents overlap, so deduplication is required here; it
+        // must be exact. A bare CFHash set dropped distinct elements that share
+        // a hash, and with them whatever sat below (see AXIdentityRegistry).
+        var visited = AXIdentityRegistry.accessibility()
         var index = 0
         while index < queue.count && nodes.count < 3_500 {
             let (element, parent, depth) = queue[index]; index += 1
-            guard visited.insert(CFHash(element)).inserted else { continue }
+            guard visited.insert(element).isNew else { continue }
             let id = nodes.count
             let role = string(element, kAXRoleAttribute) ?? "AXUnknown"
             let actionNames = actions(element)
@@ -517,10 +536,10 @@ actor SystemAccessibilityClient: ChatGPTUIClient, ChatGPTPickerTransport {
 
     private func breadthFirst(root: AXUIElement, maxDepth: Int, maxNodes: Int) -> [AXUIElement] {
         var queue: [(AXUIElement, Int)] = [(root, 0)], output: [AXUIElement] = [], index = 0
-        var visited = Set<CFHashCode>()
+        var visited = AXIdentityRegistry.accessibility()
         while index < queue.count && output.count < maxNodes {
             let (element, depth) = queue[index]; index += 1
-            guard visited.insert(CFHash(element)).inserted else { continue }
+            guard visited.insert(element).isNew else { continue }
             output.append(element)
             guard depth < maxDepth else { continue }
             let children: [AXUIElement] = value(element, kAXChildrenAttribute) ?? []

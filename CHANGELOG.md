@@ -2,6 +2,14 @@
 
 Notable user-facing changes are recorded here. Release artifacts and tags are immutable; a corrected build receives a new version.
 
+## Unreleased
+
+### Fixed
+
+- Restore ChatGPT effort changes on the current ChatGPT app, whose effort popover now shows the current model inside its **Select model** row. Previously the popover opened and stayed open while the shortcut failed.
+- Stop ChatGPT shortcuts from intermittently missing the composer: ReasonDeck could skip parts of ChatGPT's window while scanning it.
+- Make the first ChatGPT shortcut after launching ReasonDeck or ChatGPT wait for the composer instead of falling back to the older picker.
+
 ## 0.5.2 - 2026-11-21
 
 ### Fixed

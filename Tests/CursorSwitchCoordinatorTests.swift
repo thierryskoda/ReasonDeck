@@ -495,7 +495,7 @@ private func cursorNode(
 }
 
 @Test func cursorTraversalIdentityKeepsDistinctElementsWhenHashesCollide() {
-    var identities = CursorAXIdentityRegistry<Int>(
+    var identities = AXIdentityRegistry<Int>(
         hash: { _ in 7 },
         equal: ==
     )

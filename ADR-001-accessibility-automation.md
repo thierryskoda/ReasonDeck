@@ -124,6 +124,16 @@ Pin the exact certificate in ignored `Config/Local.xcconfig`, following the [tra
 
 The updater stages into a fresh bundle because copying with `ditto` directly over the installed directory merges it and can retain deleted resources, invalidating the new signature. Checks on disposable app copies exercised removal of an obsolete resource and restoration of the prior bundle after a forced failure. A failed build or changed signing requirement stops before the running app is touched. See the script for the current rollback and launch checks rather than duplicating them here.
 
+## November 2026 findings
+
+On macOS with the ChatGPT app (bundle `com.openai.codex`) 26.1117.31558, a live read and the opt-in live test (`REASONDECK_RUN_CHATGPT_LIVE_TEST=1`, unsigned `swift test` harness) found three faults. The composer itself still matched: an `AXTextArea` and the `GPT-6.1 Sol Medium` popup share a parent, now 33 levels below the window.
+
+1. The Power popover's Select model row now prints the current model and effort inside itself, so the row inherits those labels from its text children. The planner required that row's labels to be exactly Select model, so the popover was never recognized: effort changes failed with `picker_not_found` after the popover visibly opened, and the unrecognized popover was left open. The row may now also carry the model and effort, but only when they equal the announced Power status. The popover also gained `Enable fast mode` and `Reset to default` rows, which are ignored.
+2. The window snapshot deduplicated elements by `CFHash(AXUIElement)` alone. Distinct Chromium elements share hashes, so the scan dropped real nodes (12 of 514 in one window) and anything below them. Children and contents overlap here, so deduplication stays, but it is now exact: bucket by hash, confirm with `CFEqual` (`AXIdentityRegistry`, shared with Cursor). The same bare-hash sets in menu ownership and unique-row checks were replaced too; one of them could have hidden a second matching row and reported an ambiguous target as unique. ADR-002 records the same fault in the Claude adapter.
+3. The first transaction for a ChatGPT process re-enables Chromium accessibility, which rebuilds the web tree. The single snapshot taken straight afterwards could miss the composer and route the whole transaction to the legacy picker. Only that first call now waits up to one second for the composer to republish.
+
+Live results on 26.1117.31558 from 6.1 Sol / Medium, each restored to the starting selection and read back: effort to High, to Extra High, and to Light; model and effort to 6.1 Terra / High through Select model. A signed Release live check is still owed before this version is listed as certified.
+
 ## Supersession condition
 
 Revisit this decision if ChatGPT provides a supported model-selection API. The September 2026 amendment uses the newly exposed actionable composer and named Power control. Preserve frontmost scoping, final-state verification, and fail-closed behavior in any replacement.
